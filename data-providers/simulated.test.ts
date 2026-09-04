@@ -70,6 +70,41 @@ describe('SimulatedMarketDataProvider.getHistorical', () => {
   });
 });
 
+describe('SimulatedMarketDataProvider cross-method consistency', () => {
+  it('returns an identical bar for the same day regardless of window size or method', async () => {
+    const p = provider();
+    const symbol = 'CONSIST';
+
+    const fiveDay = await p.getHistorical(symbol, '5D');
+    const oneMonth = await p.getHistorical(symbol, '1M');
+    const oneYear = await p.getHistorical(symbol, '1Y');
+
+    const todayFrom5D = fiveDay.candles[fiveDay.candles.length - 1];
+    const todayFrom1M = oneMonth.candles[oneMonth.candles.length - 1];
+    const todayFrom1Y = oneYear.candles[oneYear.candles.length - 1];
+
+    // Same calendar day, pulled from three differently-sized windows: must be byte-identical.
+    expect(todayFrom1M).toEqual(todayFrom5D);
+    expect(todayFrom1Y).toEqual(todayFrom5D);
+
+    // getQuote and getIndicators slice the same underlying daily series; today's bar should
+    // agree with what getHistorical returned for the same day.
+    const quote = await p.getQuote(symbol);
+    expect(quote.price).toBe(todayFrom5D.close);
+    expect(quote.dayHigh).toBe(todayFrom5D.high);
+    expect(quote.dayLow).toBe(todayFrom5D.low);
+    expect(quote.volume).toBe(todayFrom5D.volume);
+
+    const yesterdayFrom5D = fiveDay.candles[fiveDay.candles.length - 2];
+    expect(quote.prevClose).toBe(yesterdayFrom5D.close);
+
+    // getIntraday('1d') is also a DAY_MS-interval window and should agree too.
+    const dailyIntraday = await p.getIntraday(symbol, '1d');
+    const todayFromIntraday = dailyIntraday.candles[dailyIntraday.candles.length - 1];
+    expect(todayFromIntraday).toEqual(todayFrom5D);
+  });
+});
+
 describe('SimulatedMarketDataProvider.getIndicators', () => {
   it('computes the requested indicators with matching metadata', async () => {
     const { indicators, sourceType } = await provider().getIndicators('SPY', [

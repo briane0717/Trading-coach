@@ -57,6 +57,15 @@ function seededFraction(key: string): number {
  * deterministic per (symbol, interval, window) so the same query reproduces the same bars,
  * while different windows (e.g. calling again a minute later) extend the walk realistically.
  *
+ * Daily bars (used by getQuote, getHistorical, getIndicators, and getIntraday('1d')) are one
+ * continuous per-symbol walk anchored at the Unix epoch: each day's bar is seeded only by
+ * (symbol, absolute day index), never by how many bars or what start time the caller asked
+ * for. Any window is a slice of that same history, so the same calendar day always returns an
+ * identical bar no matter which method or window pulled it — see simulated.test.ts's
+ * "cross-method consistency" test. Sub-day intraday timeframes (1m/5m/15m/1h) still use a
+ * window-seeded walk; their bar counts are fixed per timeframe rather than caller-supplied, so
+ * they aren't subject to the inconsistency this fixes.
+ *
  * Every response is tagged `sourceType: 'simulated'` — see CLAUDE.md: simulated data must
  * never render without that label.
  */
@@ -124,19 +133,67 @@ export class SimulatedMarketDataProvider implements MarketDataProvider {
     return candles;
   }
 
+  /**
+   * The canonical daily walk for `symbol`, from day index 0 (the Unix epoch) through
+   * `throughDayIndex` inclusive. Each day's noise is seeded by `(symbol, dayIndex)` alone —
+   * never by count or start time — so a given day index always produces the same bar
+   * regardless of how large a window the caller asked for. `open` still chains from the prior
+   * day's `close`, which is what makes this one continuous series rather than independent
+   * per-day values.
+   */
+  private generateDailySeries(symbol: string, throughDayIndex: number): Candle[] {
+    const volatility = this.volatility(symbol);
+    const baseVolume = this.baseVolume(symbol);
+
+    const candles: Candle[] = [];
+    let prevClose = this.basePrice(symbol);
+    for (let dayIndex = 0; dayIndex <= throughDayIndex; dayIndex++) {
+      const rand = mulberry32(hashString(`${symbol}:day:${dayIndex}`));
+      const timestamp = dayIndex * DAY_MS;
+      const open = prevClose;
+      const drift = 0.0001;
+      const change = open * (drift + gaussian(rand) * volatility);
+      const close = Math.max(0.01, open + change);
+      const wick = Math.abs(gaussian(rand)) * volatility * open * 0.5;
+      const high = Math.max(open, close) + wick;
+      const low = Math.max(0.01, Math.min(open, close) - wick);
+      const volume = Math.round(baseVolume * (0.4 + rand() * 1.2));
+
+      candles.push({
+        timestamp,
+        open: round2(open),
+        high: round2(high),
+        low: round2(low),
+        close: round2(close),
+        volume,
+      });
+      prevClose = close;
+    }
+    return candles;
+  }
+
+  /** The last `count` daily bars ending at `endTime`, sliced from the one continuous series. */
+  private dailyCandles(symbol: string, endTime: number, count: number): Candle[] {
+    const dayIndex = Math.round(alignDown(endTime, DAY_MS) / DAY_MS);
+    const series = this.generateDailySeries(symbol, dayIndex);
+    return series.slice(-count);
+  }
+
   async getQuote(symbol: string): Promise<WithMeta<Quote>> {
     const now = this.now();
     const endTime = alignDown(now, DAY_MS);
-    const [prevDay, today] = this.generateCandles(symbol, 2, DAY_MS, endTime);
+    const [prevDay, today] = this.dailyCandles(symbol, endTime, 2);
     const price = today.close;
-    const spread = round2(price * this.spreadFactor(symbol));
+    const rawSpread = price * this.spreadFactor(symbol);
+    const bid = round2(price - rawSpread / 2);
+    const ask = round2(price + rawSpread / 2);
 
     return {
       symbol,
       price,
-      bid: round2(price - spread / 2),
-      ask: round2(price + spread / 2),
-      spread,
+      bid,
+      ask,
+      spread: round2(ask - bid),
       volume: today.volume,
       marketCap: Math.round(price * this.sharesOutstanding(symbol)),
       dayHigh: today.high,
@@ -155,7 +212,10 @@ export class SimulatedMarketDataProvider implements MarketDataProvider {
     const now = this.now();
     const { intervalMs, count } = INTRADAY_PARAMS[timeframe];
     const endTime = alignDown(now, intervalMs);
-    const candles = this.generateCandles(symbol, count, intervalMs, endTime);
+    const candles =
+      intervalMs === DAY_MS
+        ? this.dailyCandles(symbol, endTime, count)
+        : this.generateCandles(symbol, count, intervalMs, endTime);
 
     return { symbol, timeframe, candles, sourceType: 'simulated', timestamp: now, stale: false };
   }
@@ -166,7 +226,7 @@ export class SimulatedMarketDataProvider implements MarketDataProvider {
   ): Promise<WithMeta<{ symbol: string; range: HistoricalRange; candles: Candle[] }>> {
     const now = this.now();
     const endTime = alignDown(now, DAY_MS);
-    const candles = this.generateCandles(symbol, RANGE_DAYS[range], DAY_MS, endTime);
+    const candles = this.dailyCandles(symbol, endTime, RANGE_DAYS[range]);
 
     return { symbol, range, candles, sourceType: 'simulated', timestamp: now, stale: false };
   }
@@ -181,7 +241,7 @@ export class SimulatedMarketDataProvider implements MarketDataProvider {
       (req) => (req.period ?? DEFAULT_INDICATOR_PERIOD[req.name] ?? 20) + 50
     );
     const barCount = Math.max(300, ...neededBars);
-    const candles = this.generateCandles(symbol, barCount, DAY_MS, endTime);
+    const candles = this.dailyCandles(symbol, endTime, barCount);
 
     const indicators: IndicatorResult[] = list.map((req) => {
       switch (req.name) {

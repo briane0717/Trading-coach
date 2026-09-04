@@ -3,6 +3,7 @@ import { Module1WhatIsAStock } from './Module1WhatIsAStock';
 import { Module2ReadingAQuote } from './Module2ReadingAQuote';
 import { Module3ChartsAndCandlesticks } from './Module3ChartsAndCandlesticks';
 import { Module4TrendAndPriceAction } from './Module4TrendAndPriceAction';
+import { Module5VolumeAndWhatItTellsYou } from './Module5VolumeAndWhatItTellsYou';
 
 export interface EducationModule {
   id: string;
@@ -40,5 +41,12 @@ export const educationModules: EducationModule[] = [
     title: 'Trend & Price Action',
     path: '/education/module-4',
     component: Module4TrendAndPriceAction,
+  },
+  {
+    id: 'module-5',
+    order: 5,
+    title: 'Volume & What It Tells You',
+    path: '/education/module-5',
+    component: Module5VolumeAndWhatItTellsYou,
   },
 ];

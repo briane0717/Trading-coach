@@ -15,11 +15,11 @@ function parseNumber(raw: string): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-function positiveFieldError(raw: string, label: string): string | undefined {
+function positiveFieldError(raw: string, label: string, minLabel: string = '$0'): string | undefined {
   if (raw.trim() === '') return undefined;
   const n = Number(raw);
   if (!Number.isFinite(n)) return `${label} must be a number.`;
-  if (n <= 0) return `${label} must be greater than $0.`;
+  if (n <= 0) return `${label} must be greater than ${minLabel}.`;
   return undefined;
 }
 
@@ -53,6 +53,8 @@ export function PositionSizeCalculator({
   const targetProvided = targetPrice.trim() !== '';
   const targetNum = targetProvided ? parseNumber(targetPrice) : undefined;
 
+  const accountSizeError = positiveFieldError(accountSize, 'Account size');
+  const riskPercentError = positiveFieldError(riskPercent, 'Risk per trade (%)', '0');
   const entryError = positiveFieldError(entryPrice, 'Entry price');
   const stopFieldError = positiveFieldError(stopPrice, 'Stop-loss price');
   const targetError = targetProvided ? positiveFieldError(targetPrice, 'Target price') : undefined;
@@ -65,7 +67,7 @@ export function PositionSizeCalculator({
   const stopError = stopFieldError ?? equalError;
 
   const riskPercentWarning =
-    riskPercentNum !== undefined && (riskPercentNum < 0.5 || riskPercentNum > 2)
+    !riskPercentError && riskPercentNum !== undefined && (riskPercentNum < 0.5 || riskPercentNum > 2)
       ? `${fmtPercent(riskPercentNum)}% is outside the roughly 0.5%–2% range this module teaches as ` +
         `reasonable for a single trade. Still usable — this is a soft guideline, not a hard limit.`
       : undefined;
@@ -75,6 +77,8 @@ export function PositionSizeCalculator({
     riskPercentNum !== undefined &&
     entryNum !== undefined &&
     stopNum !== undefined &&
+    !accountSizeError &&
+    !riskPercentError &&
     !entryError &&
     !stopError;
 
@@ -107,6 +111,7 @@ export function PositionSizeCalculator({
             onChange={(e) => setAccountSize(e.target.value)}
             placeholder="e.g. 25000"
           />
+          {accountSizeError && <p className="psc-error">{accountSizeError}</p>}
         </div>
 
         <div className="psc-field">
@@ -119,7 +124,11 @@ export function PositionSizeCalculator({
             onChange={(e) => setRiskPercent(e.target.value)}
             placeholder="e.g. 1"
           />
-          {riskPercentWarning && <p className="psc-warning">{riskPercentWarning}</p>}
+          {riskPercentError ? (
+            <p className="psc-error">{riskPercentError}</p>
+          ) : (
+            riskPercentWarning && <p className="psc-warning">{riskPercentWarning}</p>
+          )}
         </div>
 
         <div className="psc-field">

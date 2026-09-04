@@ -13,7 +13,7 @@ export function PositionSizeVerification() {
       <p className="module-eyebrow">Dev · Position Size Verification</p>
       <h1>Position Size Calculator — Verification</h1>
       <p className="module-intro">
-        Four preset scenarios below, each a separate live instance of the component (fields
+        Six preset scenarios below, each a separate live instance of the component (fields
         stay editable — presets just save re-typing). Expected values are written out next to
         each one for hand-checking.
       </p>
@@ -89,6 +89,40 @@ export function PositionSizeVerification() {
             riskPercent: '1',
             entryPrice: '40.00',
             stopPrice: '40.00',
+          }}
+        />
+      </section>
+
+      <section>
+        <h2>Preset 5 — validation errors (negative account size)</h2>
+        <p>
+          Account size is <strong>-25000</strong>. The account size field should show an inline
+          error that it must be greater than $0, and no output section should render — no
+          negative dollar risk, no garbage negative share count.
+        </p>
+        <PositionSizeCalculator
+          initialValues={{
+            accountSize: '-25000',
+            riskPercent: '1',
+            entryPrice: '52.30',
+            stopPrice: '49.30',
+          }}
+        />
+      </section>
+
+      <section>
+        <h2>Preset 6 — validation errors (negative risk %)</h2>
+        <p>
+          Risk per trade is <strong>-1</strong>%. The risk field should show an inline error
+          that it must be greater than 0 (not the soft out-of-range warning — this is a hard
+          block), and no output section should render.
+        </p>
+        <PositionSizeCalculator
+          initialValues={{
+            accountSize: '25000',
+            riskPercent: '-1',
+            entryPrice: '52.30',
+            stopPrice: '49.30',
           }}
         />
       </section>

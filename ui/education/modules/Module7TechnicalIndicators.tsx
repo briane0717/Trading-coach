@@ -1,6 +1,6 @@
 import { VideoEmbed } from '../VideoEmbed';
 import { CandlestickChart } from '../CandlestickChart';
-import { calculateEMA, calculateMACD, calculateRSI, calculateSMA } from '../indicators';
+import { calculateATR, calculateEMA, calculateMACD, calculateRSI, calculateSMA } from '../indicators';
 import { UPTREND_EXAMPLE_CANDLES } from './Module4TrendAndPriceAction';
 import type { Candle } from '../../../normalized';
 
@@ -172,7 +172,64 @@ const MACD_CROSSOVER_CANDLES: Candle[] = [
 ];
 
 /**
- * Education · Module 7, sections 1-3 of 5: Moving Averages, RSI, then MACD. All three use
+ * Fresh, hand-authored 38-bar series built only for this module's ATR section: 18 calm bars
+ * (small day-to-day drift, a fixed small wick offset on every candle) followed by a breakout
+ * bar and 19 more bars of sustained wide ranges trending higher. ATR(14) needs 14 true ranges
+ * for its first value, so it's exposed from candle index 14 on — well within the calm phase,
+ * with plenty of room left to reach the expansion phase before the series ends.
+ *
+ * Two conditions were checked programmatically against `calculateATR`'s real output before
+ * this array was finalized: ATR(14) lands around 1-2% of price during the calm phase and
+ * around 3-5% of price during the expansion phase, and the expansion reading is meaningfully
+ * higher than the calm one (not just marginally). At the end of the calm stretch
+ * (2026-01-28), ATR(14) is about $0.93 on a $80.20 close — about 1.16% of price. By the last
+ * bar (2026-02-25), ATR(14) has grown to about $3.38 on a $99.60 close — about 3.40% of
+ * price, roughly 3.6x the calm-phase reading. This is the exact array that passed both
+ * checks on the first attempt.
+ */
+const ATR_VOLATILITY_CANDLES: Candle[] = [
+  { timestamp: 1767571200000, open: 80, high: 80.65, low: 79.65, close: 80.3, volume: 900000 },
+  { timestamp: 1767657600000, open: 80.3, high: 80.6, low: 79.8, close: 80.1, volume: 880000 },
+  { timestamp: 1767744000000, open: 80.1, high: 80.85, low: 79.75, close: 80.5, volume: 920000 },
+  { timestamp: 1767830400000, open: 80.5, high: 80.8, low: 79.9, close: 80.2, volume: 900000 },
+  { timestamp: 1767916800000, open: 80.2, high: 80.7, low: 79.9, close: 80.4, volume: 880000 },
+  { timestamp: 1768176000000, open: 80.4, high: 80.75, low: 79.65, close: 80, volume: 920000 },
+  { timestamp: 1768262400000, open: 80, high: 80.6, low: 79.7, close: 80.3, volume: 900000 },
+  { timestamp: 1768348800000, open: 80.3, high: 80.6, low: 79.8, close: 80.1, volume: 880000 },
+  { timestamp: 1768435200000, open: 80.1, high: 81, low: 79.7, close: 80.6, volume: 940000 },
+  { timestamp: 1768521600000, open: 80.6, high: 80.9, low: 80, close: 80.3, volume: 900000 },
+  { timestamp: 1768780800000, open: 80.3, high: 80.8, low: 80, close: 80.5, volume: 880000 },
+  { timestamp: 1768867200000, open: 80.5, high: 80.85, low: 79.75, close: 80.1, volume: 920000 },
+  { timestamp: 1768953600000, open: 80.1, high: 80.7, low: 79.8, close: 80.4, volume: 900000 },
+  { timestamp: 1769040000000, open: 80.4, high: 80.7, low: 79.9, close: 80.2, volume: 880000 },
+  { timestamp: 1769126400000, open: 80.2, high: 80.95, low: 79.85, close: 80.6, volume: 920000 },
+  { timestamp: 1769385600000, open: 80.6, high: 80.9, low: 80, close: 80.3, volume: 900000 },
+  { timestamp: 1769472000000, open: 80.3, high: 80.8, low: 80, close: 80.5, volume: 880000 },
+  { timestamp: 1769558400000, open: 80.5, high: 80.8, low: 79.9, close: 80.2, volume: 900000 },
+  { timestamp: 1769644800000, open: 80.2, high: 85.2, low: 78.8, close: 83.8, volume: 1600000 },
+  { timestamp: 1769731200000, open: 83.8, high: 86.7, low: 82.7, close: 85.6, volume: 1400000 },
+  { timestamp: 1769990400000, open: 85.6, high: 86.8, low: 83.2, close: 84.4, volume: 1300000 },
+  { timestamp: 1770076800000, open: 84.4, high: 88, low: 83.2, close: 86.8, volume: 1450000 },
+  { timestamp: 1770163200000, open: 86.8, high: 89.5, low: 85.7, close: 88.4, volume: 1350000 },
+  { timestamp: 1770249600000, open: 88.4, high: 89.6, low: 85.4, close: 86.6, volume: 1400000 },
+  { timestamp: 1770336000000, open: 86.6, high: 90.4, low: 85.4, close: 89.2, volume: 1450000 },
+  { timestamp: 1770595200000, open: 89.2, high: 91.7, low: 88.1, close: 90.6, volume: 1350000 },
+  { timestamp: 1770681600000, open: 90.6, high: 91.7, low: 87.9, close: 89, volume: 1350000 },
+  { timestamp: 1770768000000, open: 89, high: 92.4, low: 87.8, close: 91.2, volume: 1400000 },
+  { timestamp: 1770854400000, open: 91.2, high: 94.1, low: 90.1, close: 93, volume: 1350000 },
+  { timestamp: 1770940800000, open: 93, high: 94.1, low: 90.5, close: 91.6, volume: 1300000 },
+  { timestamp: 1771200000000, open: 91.6, high: 94.8, low: 90.4, close: 93.6, volume: 1400000 },
+  { timestamp: 1771286400000, open: 93.6, high: 96.3, low: 92.5, close: 95.2, volume: 1350000 },
+  { timestamp: 1771372800000, open: 95.2, high: 96.4, low: 92.2, close: 93.4, volume: 1400000 },
+  { timestamp: 1771459200000, open: 93.4, high: 97, low: 92.2, close: 95.8, volume: 1450000 },
+  { timestamp: 1771545600000, open: 95.8, high: 98.3, low: 94.7, close: 97.2, volume: 1350000 },
+  { timestamp: 1771804800000, open: 97.2, high: 98.3, low: 94.9, close: 96, volume: 1300000 },
+  { timestamp: 1771891200000, open: 96, high: 99.2, low: 94.8, close: 98, volume: 1400000 },
+  { timestamp: 1771977600000, open: 98, high: 100.7, low: 96.9, close: 99.6, volume: 1350000 },
+];
+
+/**
+ * Education · Module 7, sections 1-4 of 5: Moving Averages, RSI, MACD, then ATR. All four use
  * `ui/education/indicators.ts` (the thin wrapper around `data-providers/internal/indicators.ts`
  * — see that file's header for why this is the single place in the repo computing this math).
  *
@@ -201,15 +258,29 @@ const MACD_CROSSOVER_CANDLES: Candle[] = [
  * `macdPane` prop (added alongside this section), which gives MACD's two lines and
  * histogram their own shared sub-pane.
  *
- * ATR and VWAP are separate sections still to be added. The end-of-module quiz is deferred
- * until all five indicators exist, so it can cover all of them at once instead of one quiz
- * per section.
+ * Section 4 (ATR) uses a fresh, hand-authored 38-bar series (`ATR_VOLATILITY_CANDLES`, this
+ * file) showing a calm, tight-range stretch followed by a breakout into a wide-range
+ * expansion — ATR(14) only needs 14 true ranges for its first value, nowhere near MACD's
+ * 34-bar wall, so 38 bars is enough to show both phases clearly. Two conditions were checked
+ * programmatically against `calculateATR`'s actual output before this array was committed:
+ * the calm-phase reading lands around 1-2% of price, the expansion-phase reading lands
+ * around 3-5% of price, and the expansion reading is meaningfully higher than the calm one
+ * — see that constant's doc comment for the specifics. Renders via CandlestickChart's
+ * existing `oscillatorPane` prop, reused without modification: ATR is a single line that
+ * needs its own auto-scaled sub-pane for the same reason RSI does (its values aren't in the
+ * same range as price), and the prop's `referenceLines` were already optional, so ATR is
+ * simply the first user of that prop that passes none — no fixed thresholds apply to ATR the
+ * way 70/30 do to RSI, since ATR has no upper or lower bound.
+ *
+ * VWAP is a separate section still to be added. The end-of-module quiz is deferred until all
+ * five indicators exist, so it can cover all of them at once instead of one quiz per section.
  */
 export function Module7TechnicalIndicators() {
   const sma20 = calculateSMA(UPTREND_EXAMPLE_CANDLES, 20);
   const ema20 = calculateEMA(UPTREND_EXAMPLE_CANDLES, 20);
   const rsi14 = calculateRSI(RSI_DIVERGENCE_CANDLES, 14);
   const macd = calculateMACD(MACD_CROSSOVER_CANDLES, 12, 26, 9);
+  const atr14 = calculateATR(ATR_VOLATILITY_CANDLES, 14);
 
   return (
     <article className="module">
@@ -471,6 +542,71 @@ export function Module7TechnicalIndicators() {
             macdLine: { label: 'MACD', color: '#2563eb', points: macd.macdLine },
             signalLine: { label: 'Signal', color: '#dc2626', points: macd.signalLine },
             histogram: { points: macd.histogram },
+          }}
+        />
+      </section>
+
+      <section>
+        <h2>ATR: how big price swings are, not which direction</h2>
+        <p>
+          Every indicator so far — moving averages, RSI, MACD — is built from the{' '}
+          <em>direction</em> of price. <strong>ATR (Average True Range)</strong> measures
+          something else entirely: how <strong>big</strong> a stock's price swings have
+          recently been, regardless of which way they went. It's the average, over the last
+          14 candles (the standard period), of each candle's <strong>true range</strong> —
+          roughly the high-to-low distance for that bar, adjusted for any gap from the prior
+          close. A rising ATR means price is moving a lot bar to bar; a falling ATR means it's
+          moving a little. Neither one says whether price is going up or down.
+        </p>
+        <p>
+          That makes ATR explicitly <strong>not a directional signal</strong> — the same way
+          volume in Module 5 didn't say which way price would break, ATR doesn't either. It's
+          worth remembering past this module, though: ATR feeds directly into{' '}
+          <strong>position sizing</strong> (Module 9), where the size of a stock's typical
+          swing helps determine how many shares to trade so that a normal move doesn't blow
+          past a planned risk amount. This section is the mechanism; Module 9 is where it gets
+          used.
+        </p>
+      </section>
+
+      <VideoEmbed
+        youtubeId="NEf62LQqnQs"
+        title="Master The ATR Indicator (Most Useful Indicator) — Mind Math Money"
+        caption="Mind Math Money: Master The ATR Indicator (Most Useful Indicator)"
+      />
+
+      <section>
+        <h2>A volatility contraction into an expansion</h2>
+        <p>
+          The chart below is a fresh example: 18 calm bars where price drifts in a tight
+          band around <strong>$80</strong>, followed by a breakout bar on{' '}
+          <strong>2026-01-29</strong> that kicks off 19 bars of much wider daily ranges as
+          price trends up to about <strong>$99.60</strong>. Price direction happens to be up
+          here, but that's incidental to what ATR is showing — the same expansion in ATR
+          would show up just as clearly if this breakout had been to the downside.
+        </p>
+        <p>
+          Look at the ATR(14) pane underneath. By the end of the calm stretch
+          (<strong>2026-01-28</strong>), ATR(14) sits around <strong>$0.93</strong> on an
+          $80.20 close — about <strong>1.2%</strong> of price, a tight, unremarkable reading.
+          After the breakout, ATR(14) climbs steadily as the wider bars work their way into
+          its 14-bar window. By the last bar (<strong>2026-02-25</strong>), it's grown to
+          about <strong>$3.38</strong> on a $99.60 close — about <strong>3.4%</strong> of
+          price, roughly <strong>3.6 times</strong> the calm-phase reading. Same stock,
+          same indicator, a very different trading environment — a stop or position size that
+          made sense during the calm phase would be sized wrong for the expansion phase, which
+          is exactly why ATR matters for position sizing rather than just describing what
+          already happened.
+        </p>
+        <CandlestickChart
+          symbol="Example: Volatility Contraction into Expansion"
+          timeframe="1d"
+          candles={ATR_VOLATILITY_CANDLES}
+          sourceType="simulated"
+          oscillatorPane={{
+            label: 'ATR(14)',
+            color: '#0891b2',
+            points: atr14,
           }}
         />
       </section>

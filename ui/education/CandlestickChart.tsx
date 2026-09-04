@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { CandlestickSeries, HistogramSeries, createChart, type IChartApi } from 'lightweight-charts';
+import {
+  CandlestickSeries,
+  HistogramSeries,
+  LineStyle,
+  createChart,
+  type IChartApi,
+  type IPriceLine,
+} from 'lightweight-charts';
 import { SimulatedMarketDataProvider } from '../../data-providers';
 import type { Candle, SourceType, Timeframe } from '../../normalized';
 
@@ -24,12 +31,14 @@ export function CandlestickChart({
   candles,
   sourceType,
   showVolume,
+  priceLines,
 }: {
   symbol: string;
   timeframe: Timeframe;
   candles?: Candle[];
   sourceType?: SourceType;
   showVolume?: boolean;
+  priceLines?: { price: number; label: string; color?: string }[];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -84,6 +93,21 @@ export function CandlestickChart({
       );
     };
 
+    let priceLineHandles: IPriceLine[] = [];
+    const setPriceLines = () => {
+      priceLineHandles.forEach((handle) => series.removePriceLine(handle));
+      priceLineHandles = (priceLines ?? []).map((pl) =>
+        series.createPriceLine({
+          price: pl.price,
+          title: pl.label,
+          color: pl.color ?? '#6b7280',
+          lineStyle: LineStyle.Dashed,
+          lineWidth: 2,
+        })
+      );
+    };
+    setPriceLines();
+
     const handleResize = () => {
       if (containerRef.current) {
         chart.applyOptions({ width: containerRef.current.clientWidth });
@@ -110,6 +134,7 @@ export function CandlestickChart({
 
       return () => {
         window.removeEventListener('resize', handleResize);
+        priceLineHandles.forEach((handle) => series.removePriceLine(handle));
         chart.remove();
         chartRef.current = null;
       };
@@ -140,10 +165,11 @@ export function CandlestickChart({
     return () => {
       cancelled = true;
       window.removeEventListener('resize', handleResize);
+      priceLineHandles.forEach((handle) => series.removePriceLine(handle));
       chart.remove();
       chartRef.current = null;
     };
-  }, [symbol, timeframe, candles, sourceType, showVolume]);
+  }, [symbol, timeframe, candles, sourceType, showVolume, priceLines]);
 
   return (
     <div className="candlestick-chart">

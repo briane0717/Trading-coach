@@ -61,7 +61,7 @@ export const educationModules: EducationModule[] = [
   {
     id: 'module-7',
     order: 7,
-    title: 'Technical Indicators: Moving Averages',
+    title: 'Technical Indicators',
     path: '/education/module-7',
     component: Module7TechnicalIndicators,
   },

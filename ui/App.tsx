@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { educationModules } from './education/modules/registry';
 import { EducationHome } from './education/EducationHome';
+import { PositionSizeVerification } from './dev/PositionSizeVerification';
 import './education/module.css';
 
 export function App() {
@@ -12,6 +13,8 @@ export function App() {
         {educationModules.map((m) => (
           <Route key={m.id} path={m.path} element={<m.component />} />
         ))}
+        {/* Throwaway verification route — see ui/dev/PositionSizeVerification.tsx. */}
+        <Route path="/dev/position-size-verification" element={<PositionSizeVerification />} />
       </Routes>
     </BrowserRouter>
   );

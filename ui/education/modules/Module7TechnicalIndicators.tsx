@@ -1,6 +1,13 @@
 import { VideoEmbed } from '../VideoEmbed';
 import { CandlestickChart } from '../CandlestickChart';
-import { calculateATR, calculateEMA, calculateMACD, calculateRSI, calculateSMA } from '../indicators';
+import {
+  calculateATR,
+  calculateEMA,
+  calculateMACD,
+  calculateRSI,
+  calculateSMA,
+  calculateVWAP,
+} from '../indicators';
 import { UPTREND_EXAMPLE_CANDLES } from './Module4TrendAndPriceAction';
 import type { Candle } from '../../../normalized';
 
@@ -229,7 +236,52 @@ const ATR_VOLATILITY_CANDLES: Candle[] = [
 ];
 
 /**
- * Education · Module 7, sections 1-4 of 5: Moving Averages, RSI, MACD, then ATR. All four use
+ * Fresh, hand-authored 27-bar intraday series built only for this module's VWAP section —
+ * 15-minute bars across a single ~6.5-hour session (2026-03-16, 09:30-16:00). Unlike every
+ * other series in this module, these timestamps span one trading day, not many, since VWAP
+ * is a same-session indicator. Three phases: a 10-bar morning rally that pulls price well
+ * above the still-rising VWAP, a 6-bar pullback that dips down to test VWAP (the low of the
+ * 16:30 bar comes within a cent of the VWAP value at that same timestamp) without any bar's
+ * close dropping below it, then an 11-bar bounce back to a new session high.
+ *
+ * Two conditions were checked programmatically against `calculateVWAP`'s real output before
+ * this array was finalized: the pullback's lowest-relative-to-VWAP bar's low sits within a
+ * small tolerance of VWAP at that timestamp (found: low $50.80 vs. VWAP $50.81, essentially a
+ * touch) while every pullback-phase close still holds at or above VWAP, and every bar after
+ * the pullback closes above VWAP. This is the exact array that passed both checks.
+ */
+const VWAP_INTRADAY_CANDLES: Candle[] = [
+  { timestamp: 1773667800000, open: 50, high: 50.33, low: 49.95, close: 50.25, volume: 210000 },
+  { timestamp: 1773668700000, open: 50.25, high: 50.52, low: 50.2, close: 50.45, volume: 190000 },
+  { timestamp: 1773669600000, open: 50.45, high: 50.66, low: 50.41, close: 50.6, volume: 170000 },
+  { timestamp: 1773670500000, open: 50.6, high: 50.84, low: 50.56, close: 50.78, volume: 150000 },
+  { timestamp: 1773671400000, open: 50.78, high: 50.95, low: 50.74, close: 50.9, volume: 140000 },
+  { timestamp: 1773672300000, open: 50.9, high: 51.05, low: 50.87, close: 51, volume: 120000 },
+  { timestamp: 1773673200000, open: 51, high: 51.12, low: 50.97, close: 51.08, volume: 110000 },
+  { timestamp: 1773674100000, open: 51.08, high: 51.19, low: 51.05, close: 51.15, volume: 100000 },
+  { timestamp: 1773675000000, open: 51.15, high: 51.23, low: 51.12, close: 51.2, volume: 95000 },
+  { timestamp: 1773675900000, open: 51.2, high: 51.28, low: 51.17, close: 51.25, volume: 90000 },
+  { timestamp: 1773676800000, open: 51.25, high: 51.28, low: 51.15, close: 51.2, volume: 100000 },
+  { timestamp: 1773677700000, open: 51.2, high: 51.23, low: 51.11, close: 51.17, volume: 105000 },
+  { timestamp: 1773678600000, open: 51.17, high: 51.2, low: 50.8, close: 51.15, volume: 130000 },
+  { timestamp: 1773679500000, open: 51.15, high: 51.24, low: 51.11, close: 51.2, volume: 110000 },
+  { timestamp: 1773680400000, open: 51.2, high: 51.33, low: 51.17, close: 51.28, volume: 100000 },
+  { timestamp: 1773681300000, open: 51.28, high: 51.41, low: 51.25, close: 51.36, volume: 95000 },
+  { timestamp: 1773682200000, open: 51.36, high: 51.53, low: 51.33, close: 51.48, volume: 100000 },
+  { timestamp: 1773683100000, open: 51.48, high: 51.68, low: 51.45, close: 51.63, volume: 105000 },
+  { timestamp: 1773684000000, open: 51.63, high: 51.82, low: 51.6, close: 51.77, volume: 110000 },
+  { timestamp: 1773684900000, open: 51.77, high: 51.95, low: 51.74, close: 51.9, volume: 115000 },
+  { timestamp: 1773685800000, open: 51.9, high: 52.12, low: 51.87, close: 52.06, volume: 120000 },
+  { timestamp: 1773686700000, open: 52.06, high: 52.27, low: 52.03, close: 52.21, volume: 130000 },
+  { timestamp: 1773687600000, open: 52.21, high: 52.41, low: 52.18, close: 52.35, volume: 140000 },
+  { timestamp: 1773688500000, open: 52.35, high: 52.53, low: 52.32, close: 52.48, volume: 150000 },
+  { timestamp: 1773689400000, open: 52.48, high: 52.65, low: 52.45, close: 52.6, volume: 165000 },
+  { timestamp: 1773690300000, open: 52.6, high: 52.81, low: 52.57, close: 52.75, volume: 185000 },
+  { timestamp: 1773691200000, open: 52.75, high: 52.94, low: 52.72, close: 52.88, volume: 210000 },
+];
+
+/**
+ * Education · Module 7, all 5 of 5 sections: Moving Averages, RSI, MACD, ATR, then VWAP. All five use
  * `ui/education/indicators.ts` (the thin wrapper around `data-providers/internal/indicators.ts`
  * — see that file's header for why this is the single place in the repo computing this math).
  *
@@ -272,8 +324,19 @@ const ATR_VOLATILITY_CANDLES: Candle[] = [
  * simply the first user of that prop that passes none — no fixed thresholds apply to ATR the
  * way 70/30 do to RSI, since ATR has no upper or lower bound.
  *
- * VWAP is a separate section still to be added. The end-of-module quiz is deferred until all
- * five indicators exist, so it can cover all of them at once instead of one quiz per section.
+ * Section 5 (VWAP) uses a fresh, hand-authored 27-bar series (`VWAP_INTRADAY_CANDLES`, this
+ * file) — 15-minute bars across one trading session, not many days like every prior section,
+ * since VWAP resets each session by definition. Two conditions were checked programmatically
+ * against `calculateVWAP`'s actual output before this array was committed: the pullback
+ * phase's low comes within a small tolerance of VWAP at that timestamp without any close in
+ * that phase dropping below VWAP, and every bar after the pullback closes above VWAP — see
+ * that constant's doc comment for the specifics. Renders via CandlestickChart's existing
+ * `overlayLines` prop, the same mechanism as the SMA/EMA section — VWAP is priced in the same
+ * dollar terms as the candles, so unlike RSI/ATR it shares the price scale instead of needing
+ * its own sub-pane.
+ *
+ * All five indicators now exist. The end-of-module quiz, deferred throughout this module so
+ * it could cover all of them at once instead of one quiz per section, can be built next.
  */
 export function Module7TechnicalIndicators() {
   const sma20 = calculateSMA(UPTREND_EXAMPLE_CANDLES, 20);
@@ -281,6 +344,7 @@ export function Module7TechnicalIndicators() {
   const rsi14 = calculateRSI(RSI_DIVERGENCE_CANDLES, 14);
   const macd = calculateMACD(MACD_CROSSOVER_CANDLES, 12, 26, 9);
   const atr14 = calculateATR(ATR_VOLATILITY_CANDLES, 14);
+  const vwap = calculateVWAP(VWAP_INTRADAY_CANDLES);
 
   return (
     <article className="module">
@@ -608,6 +672,72 @@ export function Module7TechnicalIndicators() {
             color: '#0891b2',
             points: atr14,
           }}
+        />
+      </section>
+
+      <section>
+        <h2>VWAP: a running average that resets every session</h2>
+        <p>
+          <strong>VWAP (Volume-Weighted Average Price)</strong> looks similar to the moving
+          averages from earlier in this module — it's a single line running through price —
+          but it's built differently in two ways. First, it's{' '}
+          <strong>volume-weighted</strong>: SMA and EMA treat every closing price as equally
+          important regardless of how many shares traded at it, while VWAP weights each
+          bar's price by that bar's volume, so a heavy-volume move pulls the line toward it
+          harder than a quiet one. Second, VWAP <strong>resets every session</strong> — it's
+          a cumulative average starting fresh at the day's open, not a trailing window of the
+          last <em>N</em> bars carried over from the day before the way SMA(20) or EMA(20)
+          are.
+        </p>
+        <p>
+          Because it resets daily and needs volume data at fine granularity, VWAP is most
+          commonly an <strong>intraday, day-trading tool</strong> — it doesn't mean much
+          plotted across weeks the way SMA/EMA do. That said, it's still useful context for a
+          swing trader: checking where a stock's current price sits relative to VWAP partway
+          through the day is a quick read on intraday tone (running hot above VWAP, or cool
+          and testing it) without turning this into a day-trading lesson.
+        </p>
+        <p>
+          Like the dynamic support some traders watch in a rising moving average, VWAP gets
+          watched the same way intraday — a level price tests and holds above, or fails at.
+          Same hedge as everywhere else in this module: it's a level some traders watch, not
+          a floor price is obligated to respect.
+        </p>
+      </section>
+
+      <VideoEmbed
+        youtubeId="1ERlFo0lExI"
+        title="Understanding Volume-Weighted Average Price (VWAP) — TradeStation"
+        caption="TradeStation: Understanding Volume-Weighted Average Price (VWAP)"
+      />
+
+      <section>
+        <h2>A single session: rally, test VWAP, bounce</h2>
+        <p>
+          The chart below is a fresh example, and it looks different from every other chart
+          in this module: instead of daily bars spanning weeks or months, these are{' '}
+          <strong>15-minute bars spanning one trading session</strong> (2026-03-16,
+          09:30-16:00) — the timeframe VWAP is actually built for. Price opens at{' '}
+          <strong>$50.00</strong>, rallies through the morning to <strong>$51.25</strong> by
+          10:45, pulls back through midday, then bounces to close the session at a new high
+          of <strong>$52.88</strong>.
+        </p>
+        <p>
+          Watch VWAP (the overlay line) during the midday pullback. At{' '}
+          <strong>16:30</strong>, price dips to a low of <strong>$50.80</strong> — almost
+          exactly VWAP's value at that same moment, <strong>$50.81</strong> — before closing
+          that bar back up at <strong>$51.15</strong>. Price tested VWAP and held above it,
+          the same "test, don't close below" pattern as the ATR section's support levels.
+          From there, price never closes below VWAP again for the rest of the session, and
+          by the close VWAP has only drifted up to <strong>$51.47</strong> — a cumulative
+          average moves far more slowly than the price bouncing around it.
+        </p>
+        <CandlestickChart
+          symbol="Example: Intraday Session with VWAP"
+          timeframe="15m"
+          candles={VWAP_INTRADAY_CANDLES}
+          sourceType="simulated"
+          overlayLines={[{ label: 'VWAP', color: '#ea580c', points: vwap }]}
         />
       </section>
     </article>

@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import { Module1WhatIsAStock } from './Module1WhatIsAStock';
+import { Module2ReadingAQuote } from './Module2ReadingAQuote';
 
 export interface EducationModule {
   id: string;
@@ -16,5 +17,12 @@ export const educationModules: EducationModule[] = [
     title: 'What a Stock Is',
     path: '/education/module-1',
     component: Module1WhatIsAStock,
+  },
+  {
+    id: 'module-2',
+    order: 2,
+    title: 'Reading a Quote',
+    path: '/education/module-2',
+    component: Module2ReadingAQuote,
   },
 ];

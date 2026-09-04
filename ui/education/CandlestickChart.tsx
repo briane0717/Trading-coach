@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CandlestickSeries, createChart, type IChartApi } from 'lightweight-charts';
 import { SimulatedMarketDataProvider } from '../../data-providers';
-import type { SourceType, Timeframe } from '../../normalized';
+import type { Candle, SourceType, Timeframe } from '../../normalized';
 
 const provider = new SimulatedMarketDataProvider();
 
@@ -15,12 +15,23 @@ const SOURCE_LABEL: Record<SourceType, string> = {
 /**
  * Renders a symbol's intraday candles from `MarketDataProvider.getIntraday` using
  * lightweight-charts. Always shows a source-type label per CLAUDE.md — data never
- * renders unlabeled.
+ * renders unlabeled. Pass `candles` (with optional `sourceType`) to render static data
+ * instead of fetching from the provider.
  */
-export function CandlestickChart({ symbol, timeframe }: { symbol: string; timeframe: Timeframe }) {
+export function CandlestickChart({
+  symbol,
+  timeframe,
+  candles,
+  sourceType,
+}: {
+  symbol: string;
+  timeframe: Timeframe;
+  candles?: Candle[];
+  sourceType?: SourceType;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const [sourceType, setSourceType] = useState<SourceType | null>(null);
+  const [resolvedSourceType, setResolvedSourceType] = useState<SourceType | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,8 +64,28 @@ export function CandlestickChart({ symbol, timeframe }: { symbol: string; timefr
     };
     window.addEventListener('resize', handleResize);
 
-    setSourceType(null);
+    setResolvedSourceType(null);
     setError(null);
+
+    if (candles) {
+      series.setData(
+        candles.map((c) => ({
+          time: Math.floor(c.timestamp / 1000) as import('lightweight-charts').UTCTimestamp,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+        }))
+      );
+      chart.timeScale().fitContent();
+      setResolvedSourceType(sourceType ?? 'simulated');
+
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        chart.remove();
+        chartRef.current = null;
+      };
+    }
 
     let cancelled = false;
     provider
@@ -71,7 +102,7 @@ export function CandlestickChart({ symbol, timeframe }: { symbol: string; timefr
           }))
         );
         chart.timeScale().fitContent();
-        setSourceType(result.sourceType);
+        setResolvedSourceType(result.sourceType);
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
@@ -83,7 +114,7 @@ export function CandlestickChart({ symbol, timeframe }: { symbol: string; timefr
       chart.remove();
       chartRef.current = null;
     };
-  }, [symbol, timeframe]);
+  }, [symbol, timeframe, candles, sourceType]);
 
   return (
     <div className="candlestick-chart">
@@ -91,9 +122,11 @@ export function CandlestickChart({ symbol, timeframe }: { symbol: string; timefr
         <span className="candlestick-chart-symbol">
           {symbol} · {timeframe}
         </span>
-        {sourceType && (
-          <span className={`candlestick-chart-source-badge candlestick-chart-source-badge--${sourceType}`}>
-            {SOURCE_LABEL[sourceType]} data
+        {resolvedSourceType && (
+          <span
+            className={`candlestick-chart-source-badge candlestick-chart-source-badge--${resolvedSourceType}`}
+          >
+            {SOURCE_LABEL[resolvedSourceType]} data
           </span>
         )}
       </div>

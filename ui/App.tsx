@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { educationModules } from './education/modules/registry';
 import { EducationHome } from './education/EducationHome';
-import { ChartVerification } from './dev/ChartVerification';
 import './education/module.css';
 
 export function App() {
@@ -13,8 +12,6 @@ export function App() {
         {educationModules.map((m) => (
           <Route key={m.id} path={m.path} element={<m.component />} />
         ))}
-        {/* Temporary verification route — remove once Module 3 is built. */}
-        <Route path="/dev/chart-verification" element={<ChartVerification />} />
       </Routes>
     </BrowserRouter>
   );

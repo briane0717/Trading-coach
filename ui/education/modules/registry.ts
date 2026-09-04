@@ -4,6 +4,7 @@ import { Module2ReadingAQuote } from './Module2ReadingAQuote';
 import { Module3ChartsAndCandlesticks } from './Module3ChartsAndCandlesticks';
 import { Module4TrendAndPriceAction } from './Module4TrendAndPriceAction';
 import { Module5VolumeAndWhatItTellsYou } from './Module5VolumeAndWhatItTellsYou';
+import { Module6SupportAndResistance } from './Module6SupportAndResistance';
 
 export interface EducationModule {
   id: string;
@@ -48,5 +49,12 @@ export const educationModules: EducationModule[] = [
     title: 'Volume & What It Tells You',
     path: '/education/module-5',
     component: Module5VolumeAndWhatItTellsYou,
+  },
+  {
+    id: 'module-6',
+    order: 6,
+    title: 'Support & Resistance',
+    path: '/education/module-6',
+    component: Module6SupportAndResistance,
   },
 ];

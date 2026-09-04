@@ -1,0 +1,17 @@
+{
+  "name": "trading-coach",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Education-first trading coach app. See CLAUDE.md and ARCHITECTURE.md.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit false --outDir dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}

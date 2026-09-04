@@ -1,0 +1,217 @@
+import type {
+  Candle,
+  HistoricalRange,
+  IndicatorRequest,
+  IndicatorResult,
+  Quote,
+  Timeframe,
+  WithMeta,
+} from '../normalized';
+import type { MarketDataProvider } from './interface';
+import { gaussian, hashString, mulberry32 } from './internal/rng';
+import { atr, ema, macd, rsi, sma, vwap } from './internal/indicators';
+
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+
+const INTRADAY_PARAMS: Record<Timeframe, { intervalMs: number; count: number }> = {
+  '1m': { intervalMs: MINUTE_MS, count: 390 }, // one 6.5h trading session
+  '5m': { intervalMs: 5 * MINUTE_MS, count: 78 },
+  '15m': { intervalMs: 15 * MINUTE_MS, count: 26 },
+  '1h': { intervalMs: HOUR_MS, count: 7 },
+  '1d': { intervalMs: DAY_MS, count: 30 },
+};
+
+const RANGE_DAYS: Record<HistoricalRange, number> = {
+  '1D': 1,
+  '5D': 5,
+  '1M': 21,
+  '3M': 63,
+  '6M': 126,
+  '1Y': 252,
+  '5Y': 1260,
+};
+
+const DEFAULT_INDICATOR_PERIOD: Partial<Record<IndicatorRequest['name'], number>> = {
+  SMA: 20,
+  EMA: 20,
+  RSI: 14,
+  ATR: 14,
+};
+
+function alignDown(ms: number, interval: number): number {
+  return Math.floor(ms / interval) * interval;
+}
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function seededFraction(key: string): number {
+  return mulberry32(hashString(key))();
+}
+
+/**
+ * Generates plausible OHLC/quote data with no vendor account or API key required. Series are
+ * deterministic per (symbol, interval, window) so the same query reproduces the same bars,
+ * while different windows (e.g. calling again a minute later) extend the walk realistically.
+ *
+ * Every response is tagged `sourceType: 'simulated'` — see CLAUDE.md: simulated data must
+ * never render without that label.
+ */
+export class SimulatedMarketDataProvider implements MarketDataProvider {
+  private readonly now: () => number;
+
+  constructor(options: { now?: () => number } = {}) {
+    this.now = options.now ?? (() => Date.now());
+  }
+
+  private basePrice(symbol: string): number {
+    return 5 + seededFraction(`base:${symbol}`) * 495; // $5 - $500
+  }
+
+  private volatility(symbol: string): number {
+    return 0.005 + seededFraction(`vol:${symbol}`) * 0.03; // 0.5% - 3.5% per bar
+  }
+
+  private baseVolume(symbol: string): number {
+    return 100_000 + seededFraction(`volu:${symbol}`) * 4_900_000;
+  }
+
+  private sharesOutstanding(symbol: string): number {
+    return 50_000_000 + seededFraction(`shares:${symbol}`) * 4_950_000_000;
+  }
+
+  private spreadFactor(symbol: string): number {
+    return 0.0003 + seededFraction(`spread:${symbol}`) * 0.0017; // 0.03% - 0.2%
+  }
+
+  private generateCandles(
+    symbol: string,
+    count: number,
+    intervalMs: number,
+    endTime: number
+  ): Candle[] {
+    const startTime = endTime - (count - 1) * intervalMs;
+    const rand = mulberry32(hashString(`${symbol}:${intervalMs}:${startTime}:${count}`));
+    const volatility = this.volatility(symbol);
+    const baseVolume = this.baseVolume(symbol);
+
+    const candles: Candle[] = [];
+    let prevClose = this.basePrice(symbol);
+    for (let i = 0; i < count; i++) {
+      const timestamp = startTime + i * intervalMs;
+      const open = prevClose;
+      const drift = 0.0001;
+      const change = open * (drift + gaussian(rand) * volatility);
+      const close = Math.max(0.01, open + change);
+      const wick = Math.abs(gaussian(rand)) * volatility * open * 0.5;
+      const high = Math.max(open, close) + wick;
+      const low = Math.max(0.01, Math.min(open, close) - wick);
+      const volume = Math.round(baseVolume * (0.4 + rand() * 1.2));
+
+      candles.push({
+        timestamp,
+        open: round2(open),
+        high: round2(high),
+        low: round2(low),
+        close: round2(close),
+        volume,
+      });
+      prevClose = close;
+    }
+    return candles;
+  }
+
+  async getQuote(symbol: string): Promise<WithMeta<Quote>> {
+    const now = this.now();
+    const endTime = alignDown(now, DAY_MS);
+    const [prevDay, today] = this.generateCandles(symbol, 2, DAY_MS, endTime);
+    const price = today.close;
+    const spread = round2(price * this.spreadFactor(symbol));
+
+    return {
+      symbol,
+      price,
+      bid: round2(price - spread / 2),
+      ask: round2(price + spread / 2),
+      spread,
+      volume: today.volume,
+      marketCap: Math.round(price * this.sharesOutstanding(symbol)),
+      dayHigh: today.high,
+      dayLow: today.low,
+      prevClose: prevDay.close,
+      sourceType: 'simulated',
+      timestamp: now,
+      stale: false,
+    };
+  }
+
+  async getIntraday(
+    symbol: string,
+    timeframe: Timeframe
+  ): Promise<WithMeta<{ symbol: string; timeframe: Timeframe; candles: Candle[] }>> {
+    const now = this.now();
+    const { intervalMs, count } = INTRADAY_PARAMS[timeframe];
+    const endTime = alignDown(now, intervalMs);
+    const candles = this.generateCandles(symbol, count, intervalMs, endTime);
+
+    return { symbol, timeframe, candles, sourceType: 'simulated', timestamp: now, stale: false };
+  }
+
+  async getHistorical(
+    symbol: string,
+    range: HistoricalRange
+  ): Promise<WithMeta<{ symbol: string; range: HistoricalRange; candles: Candle[] }>> {
+    const now = this.now();
+    const endTime = alignDown(now, DAY_MS);
+    const candles = this.generateCandles(symbol, RANGE_DAYS[range], DAY_MS, endTime);
+
+    return { symbol, range, candles, sourceType: 'simulated', timestamp: now, stale: false };
+  }
+
+  async getIndicators(
+    symbol: string,
+    list: IndicatorRequest[]
+  ): Promise<WithMeta<{ symbol: string; indicators: IndicatorResult[] }>> {
+    const now = this.now();
+    const endTime = alignDown(now, DAY_MS);
+    const neededBars = list.map(
+      (req) => (req.period ?? DEFAULT_INDICATOR_PERIOD[req.name] ?? 20) + 50
+    );
+    const barCount = Math.max(300, ...neededBars);
+    const candles = this.generateCandles(symbol, barCount, DAY_MS, endTime);
+
+    const indicators: IndicatorResult[] = list.map((req) => {
+      switch (req.name) {
+        case 'SMA': {
+          const period = req.period ?? DEFAULT_INDICATOR_PERIOD.SMA!;
+          return { name: 'SMA', period, points: sma(candles, period) };
+        }
+        case 'EMA': {
+          const period = req.period ?? DEFAULT_INDICATOR_PERIOD.EMA!;
+          return { name: 'EMA', period, points: ema(candles, period) };
+        }
+        case 'RSI': {
+          const period = req.period ?? DEFAULT_INDICATOR_PERIOD.RSI!;
+          return { name: 'RSI', period, points: rsi(candles, period) };
+        }
+        case 'ATR': {
+          const period = req.period ?? DEFAULT_INDICATOR_PERIOD.ATR!;
+          return { name: 'ATR', period, points: atr(candles, period) };
+        }
+        case 'MACD':
+          return { name: 'MACD', points: macd(candles) };
+        case 'VWAP':
+          return { name: 'VWAP', points: vwap(candles) };
+        default: {
+          const exhaustive: never = req.name;
+          throw new Error(`Unsupported indicator: ${exhaustive}`);
+        }
+      }
+    });
+
+    return { symbol, indicators, sourceType: 'simulated', timestamp: now, stale: false };
+  }
+}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CandlestickSeries, createChart, type IChartApi } from 'lightweight-charts';
+import { CandlestickSeries, HistogramSeries, createChart, type IChartApi } from 'lightweight-charts';
 import { SimulatedMarketDataProvider } from '../../data-providers';
 import type { Candle, SourceType, Timeframe } from '../../normalized';
 
@@ -23,11 +23,13 @@ export function CandlestickChart({
   timeframe,
   candles,
   sourceType,
+  showVolume,
 }: {
   symbol: string;
   timeframe: Timeframe;
   candles?: Candle[];
   sourceType?: SourceType;
+  showVolume?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -57,6 +59,31 @@ export function CandlestickChart({
       wickDownColor: '#dc2626',
     });
 
+    const volumeSeries = showVolume
+      ? chart.addSeries(
+          HistogramSeries,
+          {
+            priceFormat: { type: 'volume' },
+            priceScaleId: 'volume',
+          },
+          1
+        )
+      : null;
+    if (volumeSeries) {
+      chart.panes()[1]?.setStretchFactor(0.25);
+    }
+
+    const setVolumeData = (source: Candle[]) => {
+      if (!volumeSeries) return;
+      volumeSeries.setData(
+        source.map((c) => ({
+          time: Math.floor(c.timestamp / 1000) as import('lightweight-charts').UTCTimestamp,
+          value: c.volume,
+          color: c.close >= c.open ? '#16a34a' : '#dc2626',
+        }))
+      );
+    };
+
     const handleResize = () => {
       if (containerRef.current) {
         chart.applyOptions({ width: containerRef.current.clientWidth });
@@ -77,6 +104,7 @@ export function CandlestickChart({
           close: c.close,
         }))
       );
+      setVolumeData(candles);
       chart.timeScale().fitContent();
       setResolvedSourceType(sourceType ?? 'simulated');
 
@@ -101,6 +129,7 @@ export function CandlestickChart({
             close: c.close,
           }))
         );
+        setVolumeData(result.candles);
         chart.timeScale().fitContent();
         setResolvedSourceType(result.sourceType);
       })
@@ -114,7 +143,7 @@ export function CandlestickChart({
       chart.remove();
       chartRef.current = null;
     };
-  }, [symbol, timeframe, candles, sourceType]);
+  }, [symbol, timeframe, candles, sourceType, showVolume]);
 
   return (
     <div className="candlestick-chart">

@@ -6,75 +6,81 @@ import type { Candle } from '../../../normalized';
 
 /**
  * Fresh, hand-authored series built only for this module's RSI section — not reused from
- * any prior module. Constructed in four phases (a flat lead-in, a strong low-pullback rally,
- * a pullback, then a choppier/weaker second rally that grinds to a higher price high) so it
- * exhibits bearish RSI divergence: RSI(14) > 70 at the first swing high (2026-01-23, high
- * 125.32, RSI ~98.15), then a second swing high on 2026-03-01 (high 125.75 — a higher price)
- * whose RSI(14) is only ~81.87 — lower than the first high's, despite the higher price. All
- * three conditions were checked against `calculateRSI`'s real output before this array was
- * finalized (see the generation/verification script noted in this section's commit); this
- * is the exact array that passed.
+ * any prior module. Constructed in phases (a flat lead-in, a rally with occasional down
+ * bars to the first swing high, a pullback, then a long choppy consolidation followed by a
+ * tapering second rally that grinds out a higher price high) so it exhibits bearish RSI
+ * divergence with realistic magnitudes: RSI(14) reaches a strong-but-typical overbought
+ * reading of ~82.8 at the first swing high (2026-01-21, high 114.81) — not a near-100
+ * extreme — then a second, higher swing high on 2026-03-01 (high 116.02) prints with
+ * RSI(14) at only ~64.1, clearly back below the 70 overbought threshold. Four conditions
+ * were checked programmatically against `calculateRSI`'s real output before this array was
+ * finalized — RSI > 70 at the first high; second high's price above the first's; second
+ * high's RSI below the first's; second high's RSI below 70 (confirming it's genuinely off
+ * the overbought shelf, not just marginally less extreme) — see the generation/verification
+ * script referenced in the commit that revised this section. This is the exact array that
+ * passed all four.
  */
 const RSI_DIVERGENCE_CANDLES: Candle[] = [
   { timestamp: 1767571200000, open: 100, high: 100.49, low: 99.81, close: 100.3, volume: 960000 },
   { timestamp: 1767657600000, open: 100.3, high: 100.48, low: 99.92, close: 100.1, volume: 940000 },
   { timestamp: 1767744000000, open: 100.1, high: 100.71, low: 99.89, close: 100.5, volume: 980000 },
-  { timestamp: 1767830400000, open: 100.5, high: 100.7, low: 100.01, close: 100.2, volume: 960000 },
-  { timestamp: 1767916800000, open: 100.2, high: 100.58, low: 100.02, close: 100.4, volume: 940000 },
-  { timestamp: 1768003200000, open: 100.4, high: 102.28, low: 100.03, close: 101.9, volume: 1200000 },
-  { timestamp: 1768089600000, open: 101.9, high: 104.12, low: 101.48, close: 103.7, volume: 1260000 },
-  { timestamp: 1768176000000, open: 103.7, high: 105.69, low: 103.31, close: 105.3, volume: 1220000 },
-  { timestamp: 1768262400000, open: 105.3, high: 107.75, low: 104.85, close: 107.3, volume: 1300000 },
-  { timestamp: 1768348800000, open: 107.3, high: 109.41, low: 106.9, close: 109, volume: 1240000 },
-  { timestamp: 1768435200000, open: 109, high: 111.34, low: 108.57, close: 110.9, volume: 1280000 },
-  { timestamp: 1768521600000, open: 110.9, high: 112.78, low: 110.53, close: 112.4, volume: 1200000 },
-  { timestamp: 1768608000000, open: 112.4, high: 114.62, low: 111.98, close: 114.2, volume: 1260000 },
-  { timestamp: 1768694400000, open: 114.2, high: 116.19, low: 113.81, close: 115.8, volume: 1220000 },
-  { timestamp: 1768780800000, open: 115.8, high: 118.37, low: 115.34, close: 117.9, volume: 1320000 },
-  { timestamp: 1768867200000, open: 117.9, high: 120.01, low: 117.5, close: 119.6, volume: 1240000 },
-  { timestamp: 1768953600000, open: 119.6, high: 121.94, low: 119.17, close: 121.5, volume: 1280000 },
-  { timestamp: 1769040000000, open: 121.5, high: 123.49, low: 121.11, close: 123.1, volume: 1220000 },
-  { timestamp: 1769126400000, open: 123.1, high: 125.32, low: 122.68, close: 124.9, volume: 1260000 },
-  { timestamp: 1769212800000, open: 124.9, high: 125.23, low: 123.37, close: 123.7, volume: 1140000 },
-  { timestamp: 1769299200000, open: 123.7, high: 124.08, low: 121.83, close: 122.2, volume: 1200000 },
-  { timestamp: 1769385600000, open: 122.2, high: 122.55, low: 120.56, close: 120.9, volume: 1160000 },
-  { timestamp: 1769472000000, open: 120.9, high: 121.2, low: 119.6, close: 119.9, volume: 1100000 },
-  { timestamp: 1769558400000, open: 119.9, high: 120.17, low: 118.83, close: 119.1, volume: 1060000 },
-  { timestamp: 1769644800000, open: 119.1, high: 119.42, low: 117.69, close: 118, volume: 1120000 },
-  { timestamp: 1769731200000, open: 118, high: 118.29, low: 116.82, close: 117.1, volume: 1080000 },
-  { timestamp: 1769817600000, open: 117.1, high: 117.34, low: 116.26, close: 116.5, volume: 1020000 },
-  { timestamp: 1769904000000, open: 116.5, high: 116.71, low: 115.89, close: 116.1, volume: 980000 },
-  { timestamp: 1769990400000, open: 116.1, high: 116.29, low: 115.61, close: 115.8, volume: 960000 },
-  { timestamp: 1770076800000, open: 115.8, high: 116.64, low: 115.56, close: 116.4, volume: 1020000 },
-  { timestamp: 1770163200000, open: 116.4, high: 116.63, low: 115.68, close: 115.9, volume: 1000000 },
-  { timestamp: 1770249600000, open: 115.9, high: 116.63, low: 115.68, close: 116.4, volume: 1000000 },
-  { timestamp: 1770336000000, open: 116.4, high: 116.61, low: 115.79, close: 116, volume: 980000 },
-  { timestamp: 1770422400000, open: 116, high: 116.84, low: 115.76, close: 116.6, volume: 1020000 },
-  { timestamp: 1770508800000, open: 116.6, high: 116.79, low: 116.11, close: 116.3, volume: 960000 },
-  { timestamp: 1770595200000, open: 116.3, high: 116.91, low: 116.09, close: 116.7, volume: 980000 },
-  { timestamp: 1770681600000, open: 116.7, high: 116.9, low: 116.21, close: 116.4, volume: 960000 },
-  { timestamp: 1770768000000, open: 116.4, high: 117.13, low: 116.18, close: 116.9, volume: 1000000 },
-  { timestamp: 1770854400000, open: 116.9, high: 117.08, low: 116.52, close: 116.7, volume: 940000 },
-  { timestamp: 1770940800000, open: 116.7, high: 117.31, low: 116.49, close: 117.1, volume: 980000 },
-  { timestamp: 1771027200000, open: 117.1, high: 117.28, low: 116.72, close: 116.9, volume: 940000 },
-  { timestamp: 1771113600000, open: 116.9, high: 117.63, low: 116.68, close: 117.4, volume: 1000000 },
-  { timestamp: 1771200000000, open: 117.4, high: 117.58, low: 117.02, close: 117.2, volume: 940000 },
-  { timestamp: 1771286400000, open: 117.2, high: 117.7, low: 117.01, close: 117.5, volume: 960000 },
-  { timestamp: 1771372800000, open: 117.5, high: 117.67, low: 117.24, close: 117.4, volume: 920000 },
-  { timestamp: 1771459200000, open: 117.4, high: 118.01, low: 117.19, close: 117.8, volume: 980000 },
-  { timestamp: 1771545600000, open: 117.8, high: 117.97, low: 117.54, close: 117.7, volume: 920000 },
-  { timestamp: 1771632000000, open: 117.7, high: 119.58, low: 117.33, close: 119.2, volume: 1200000 },
-  { timestamp: 1771718400000, open: 119.2, high: 119.4, low: 118.71, close: 118.9, volume: 960000 },
-  { timestamp: 1771804800000, open: 118.9, high: 120.89, low: 118.51, close: 120.5, volume: 1220000 },
-  { timestamp: 1771891200000, open: 120.5, high: 120.7, low: 120.01, close: 120.2, volume: 960000 },
-  { timestamp: 1771977600000, open: 120.2, high: 122.31, low: 119.8, close: 121.9, volume: 1240000 },
-  { timestamp: 1772064000000, open: 121.9, high: 122.08, low: 121.52, close: 121.7, volume: 940000 },
-  { timestamp: 1772150400000, open: 121.7, high: 123.46, low: 121.34, close: 123.1, volume: 1180000 },
-  { timestamp: 1772236800000, open: 123.1, high: 124.4, low: 122.8, close: 124.1, volume: 1100000 },
-  { timestamp: 1772323200000, open: 124.1, high: 125.75, low: 123.76, close: 125.4, volume: 1160000 },
-  { timestamp: 1772409600000, open: 125.4, high: 125.69, low: 124.22, close: 124.5, volume: 1080000 },
-  { timestamp: 1772496000000, open: 124.5, high: 124.76, low: 123.55, close: 123.8, volume: 1040000 },
-  { timestamp: 1772582400000, open: 123.8, high: 124.03, low: 123.08, close: 123.3, volume: 1000000 },
+  { timestamp: 1767830400000, open: 100.5, high: 102.72, low: 100.08, close: 102.3, volume: 1260000 },
+  { timestamp: 1767916800000, open: 102.3, high: 104.41, low: 101.9, close: 104, volume: 1240000 },
+  { timestamp: 1768003200000, open: 104, high: 104.29, low: 102.82, close: 103.1, volume: 1080000 },
+  { timestamp: 1768089600000, open: 103.1, high: 105.32, low: 102.68, close: 104.9, volume: 1260000 },
+  { timestamp: 1768176000000, open: 104.9, high: 107.01, low: 104.5, close: 106.6, volume: 1240000 },
+  { timestamp: 1768262400000, open: 106.6, high: 106.89, low: 105.42, close: 105.7, volume: 1080000 },
+  { timestamp: 1768348800000, open: 105.7, high: 107.92, low: 105.28, close: 107.5, volume: 1260000 },
+  { timestamp: 1768435200000, open: 107.5, high: 109.61, low: 107.1, close: 109.2, volume: 1240000 },
+  { timestamp: 1768521600000, open: 109.2, high: 109.49, low: 108.02, close: 108.3, volume: 1080000 },
+  { timestamp: 1768608000000, open: 108.3, high: 110.52, low: 107.88, close: 110.1, volume: 1260000 },
+  { timestamp: 1768694400000, open: 110.1, high: 112.21, low: 109.7, close: 111.8, volume: 1240000 },
+  { timestamp: 1768780800000, open: 111.8, high: 112.09, low: 110.62, close: 110.9, volume: 1080000 },
+  { timestamp: 1768867200000, open: 110.9, high: 113.12, low: 110.48, close: 112.7, volume: 1260000 },
+  { timestamp: 1768953600000, open: 112.7, high: 114.81, low: 112.3, close: 114.4, volume: 1240000 },
+  { timestamp: 1769040000000, open: 114.4, high: 114.73, low: 112.87, close: 113.2, volume: 1140000 },
+  { timestamp: 1769126400000, open: 113.2, high: 113.58, low: 111.33, close: 111.7, volume: 1200000 },
+  { timestamp: 1769212800000, open: 111.7, high: 112.05, low: 110.06, close: 110.4, volume: 1160000 },
+  { timestamp: 1769299200000, open: 110.4, high: 110.7, low: 109.1, close: 109.4, volume: 1100000 },
+  { timestamp: 1769385600000, open: 109.4, high: 109.67, low: 108.33, close: 108.6, volume: 1060000 },
+  { timestamp: 1769472000000, open: 108.6, high: 108.92, low: 107.19, close: 107.5, volume: 1120000 },
+  { timestamp: 1769558400000, open: 107.5, high: 107.79, low: 106.32, close: 106.6, volume: 1080000 },
+  { timestamp: 1769644800000, open: 106.6, high: 106.84, low: 105.76, close: 106, volume: 1020000 },
+  { timestamp: 1769731200000, open: 106, high: 106.21, low: 105.39, close: 105.6, volume: 980000 },
+  { timestamp: 1769817600000, open: 105.6, high: 105.79, low: 105.11, close: 105.3, volume: 960000 },
+  { timestamp: 1769904000000, open: 105.3, high: 106.14, low: 105.06, close: 105.9, volume: 1020000 },
+  { timestamp: 1769990400000, open: 105.9, high: 106.14, low: 105.06, close: 105.3, volume: 1020000 },
+  { timestamp: 1770076800000, open: 105.3, high: 106.03, low: 105.08, close: 105.8, volume: 1000000 },
+  { timestamp: 1770163200000, open: 105.8, high: 106.03, low: 105.08, close: 105.3, volume: 1000000 },
+  { timestamp: 1770249600000, open: 105.3, high: 106.14, low: 105.06, close: 105.9, volume: 1020000 },
+  { timestamp: 1770336000000, open: 105.9, high: 106.14, low: 105.06, close: 105.3, volume: 1020000 },
+  { timestamp: 1770422400000, open: 105.3, high: 106.03, low: 105.08, close: 105.8, volume: 1000000 },
+  { timestamp: 1770508800000, open: 105.8, high: 106.03, low: 105.08, close: 105.3, volume: 1000000 },
+  { timestamp: 1770595200000, open: 105.3, high: 107.75, low: 104.85, close: 107.3, volume: 1300000 },
+  { timestamp: 1770681600000, open: 107.3, high: 107.54, low: 106.46, close: 106.7, volume: 1020000 },
+  { timestamp: 1770768000000, open: 106.7, high: 109.15, low: 106.25, close: 108.7, volume: 1300000 },
+  { timestamp: 1770854400000, open: 108.7, high: 108.94, low: 107.86, close: 108.1, volume: 1020000 },
+  { timestamp: 1770940800000, open: 108.1, high: 110.44, low: 107.67, close: 110, volume: 1280000 },
+  { timestamp: 1771027200000, open: 110, high: 110.26, low: 109.05, close: 109.3, volume: 1040000 },
+  { timestamp: 1771113600000, open: 109.3, high: 111.64, low: 108.87, close: 111.2, volume: 1280000 },
+  { timestamp: 1771200000000, open: 111.2, high: 111.46, low: 110.25, close: 110.5, volume: 1040000 },
+  { timestamp: 1771286400000, open: 110.5, high: 112.72, low: 110.08, close: 112.3, volume: 1260000 },
+  { timestamp: 1771372800000, open: 112.3, high: 112.57, low: 111.23, close: 111.5, volume: 1060000 },
+  { timestamp: 1771459200000, open: 111.5, high: 113.72, low: 111.08, close: 113.3, volume: 1260000 },
+  { timestamp: 1771545600000, open: 113.3, high: 113.57, low: 112.23, close: 112.5, volume: 1060000 },
+  { timestamp: 1771632000000, open: 112.5, high: 114.49, low: 112.11, close: 114.1, volume: 1220000 },
+  { timestamp: 1771718400000, open: 114.1, high: 114.39, low: 112.92, close: 113.2, volume: 1080000 },
+  { timestamp: 1771804800000, open: 113.2, high: 115.19, low: 112.81, close: 114.8, volume: 1220000 },
+  { timestamp: 1771891200000, open: 114.8, high: 115.09, low: 113.62, close: 113.9, volume: 1080000 },
+  { timestamp: 1771977600000, open: 113.9, high: 115.66, low: 113.54, close: 115.3, volume: 1180000 },
+  { timestamp: 1772064000000, open: 115.3, high: 115.6, low: 114, close: 114.3, volume: 1100000 },
+  { timestamp: 1772150400000, open: 114.3, high: 115.95, low: 113.96, close: 115.6, volume: 1160000 },
+  { timestamp: 1772236800000, open: 115.6, high: 115.9, low: 114.3, close: 114.6, volume: 1100000 },
+  { timestamp: 1772323200000, open: 114.6, high: 116.02, low: 114.29, close: 115.7, volume: 1120000 },
+  { timestamp: 1772409600000, open: 115.7, high: 116, low: 114.4, close: 114.7, volume: 1100000 },
+  { timestamp: 1772496000000, open: 114.7, high: 114.99, low: 113.52, close: 113.8, volume: 1080000 },
+  { timestamp: 1772582400000, open: 113.8, high: 114.06, low: 112.85, close: 113.1, volume: 1040000 },
+  { timestamp: 1772668800000, open: 113.1, high: 113.32, low: 112.38, close: 112.6, volume: 1000000 },
 ];
 
 /**
@@ -88,16 +94,17 @@ const RSI_DIVERGENCE_CANDLES: Candle[] = [
  * short of a crossover example — two MAs of different lengths crossing is exactly what
  * MACD (a later section) does, so that mechanic is taught once, there, instead of twice.
  *
- * Section 2 (RSI) uses a fresh, hand-authored ~59-bar series (`RSI_DIVERGENCE_CANDLES`,
- * this file) built specifically to show bearish divergence: RSI(14) crosses above 70 into
- * the first swing high, then a second, higher swing high prints with a lower RSI reading —
- * momentum fading even as price makes new highs. The three conditions that make that claim
- * true (RSI > 70 at the first high; second high's price above the first; second high's RSI
- * below the first's) were checked programmatically against `calculateRSI`'s actual output
- * before this array was committed — see the verification script referenced in the commit
- * that added this section. Renders via CandlestickChart's `oscillatorPane` prop (added
- * alongside this section), which gives RSI its own 0-100 sub-pane instead of sharing the
- * price scale.
+ * Section 2 (RSI) uses a fresh, hand-authored 60-bar series (`RSI_DIVERGENCE_CANDLES`, this
+ * file) built specifically to show bearish divergence at realistic magnitudes: RSI(14)
+ * reaches a strong-but-typical overbought reading (~83) at the first swing high, then a
+ * second, higher swing high prints with RSI clearly back below 70 (~64) — momentum
+ * genuinely faded, not just marginally less extreme. Four conditions were checked
+ * programmatically against `calculateRSI`'s actual output before this array was committed
+ * (RSI > 70 at the first high; second high's price above the first's; second high's RSI
+ * below the first's; second high's RSI below 70) — see the verification script referenced
+ * in the commit that revised this section. Renders via CandlestickChart's `oscillatorPane`
+ * prop (added alongside this section), which gives RSI its own 0-100 sub-pane instead of
+ * sharing the price scale.
  *
  * MACD, ATR, and VWAP are separate sections still to be added. The end-of-module quiz is
  * deferred until all five indicators exist, so it can cover all of them at once instead of
@@ -248,13 +255,14 @@ export function Module7TechnicalIndicators() {
         </p>
         <p>
           Now look at RSI(14) in the pane underneath. At the <strong>first</strong> swing
-          high (2026-01-23, price <strong>$125.32</strong>), RSI reads about{' '}
-          <strong>98</strong> — deep into overbought territory, reflecting the relentless,
-          almost uninterrupted rally that got it there. At the <strong>second</strong> swing
-          high (2026-03-01, price <strong>$125.75</strong> — a new high), RSI reads only
-          about <strong>82</strong>. Price made more progress the second time. Momentum did
-          not — the second rally took longer, ground higher in a choppier, more
-          interrupted climb, and RSI never came close to matching its earlier reading.
+          high (2026-01-21, price <strong>$114.81</strong>), RSI reads about{' '}
+          <strong>83</strong> — a strong, typical overbought reading. At the{' '}
+          <strong>second</strong> swing high (2026-03-01, price <strong>$116.02</strong> — a
+          new high), RSI reads only about <strong>64</strong>, clearly back{' '}
+          <strong>below</strong> the 70 overbought line. Price made more progress the second
+          time. Momentum did not — the second rally took longer, ground higher in a
+          choppier, more interrupted climb, and RSI never got anywhere close to overbought
+          again on the way to that new high.
         </p>
         <p>
           That pattern — price making a higher high while RSI makes a{' '}

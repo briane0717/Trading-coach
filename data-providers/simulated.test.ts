@@ -56,6 +56,17 @@ describe('SimulatedMarketDataProvider.getIntraday', () => {
       if (i > 0) expect(c.timestamp - candles[i - 1].timestamp).toBe(5 * 60_000);
     }
   });
+
+  it("anchors its first bar's open to the daily walk's close from the day before, not basePrice", async () => {
+    const p = provider();
+    const symbol = 'INTRADAY-ANCHOR';
+
+    const daily = await p.getHistorical(symbol, '5D');
+    const priorDayClose = daily.candles[daily.candles.length - 2].close;
+
+    const intraday = await p.getIntraday(symbol, '5m');
+    expect(intraday.candles[0].open).toBe(priorDayClose);
+  });
 });
 
 describe('SimulatedMarketDataProvider.getHistorical', () => {

@@ -71,8 +71,13 @@ function seededFraction(key: string): number {
  * for. Any window is a slice of that same history, so the same calendar day always returns an
  * identical bar no matter which method or window pulled it — see simulated.test.ts's
  * "cross-method consistency" test. Sub-day intraday timeframes (1m/5m/15m/1h) still use a
- * window-seeded walk; their bar counts are fixed per timeframe rather than caller-supplied, so
- * they aren't subject to the inconsistency this fixes.
+ * separate, window-seeded walk (their bar counts are fixed per timeframe rather than
+ * caller-supplied, so they aren't subject to the inconsistency the daily walk fixes) — but
+ * that walk is not independent of the daily one: it anchors its first bar to the daily
+ * walk's close on the trading day before the window starts, so a symbol's intraday price
+ * level continues from wherever its daily series currently stands rather than restarting
+ * near basePrice(symbol) every call. See simulated.test.ts's "intraday continues from the
+ * daily walk" test.
  *
  * Every response is tagged `sourceType: 'simulated'` — see CLAUDE.md: simulated data must
  * never render without that label.
@@ -115,8 +120,15 @@ export class SimulatedMarketDataProvider implements MarketDataProvider {
     const volatility = this.volatility(symbol);
     const baseVolume = this.baseVolume(symbol);
 
+    // Anchor to the daily walk's close on the trading day before this window starts, so
+    // intraday candles continue from wherever the daily series currently stands instead of
+    // restarting near basePrice(symbol) every call. Every INTRADAY_PARAMS window is under
+    // 24h, so it can straddle at most one midnight — a single anchor covers the whole window.
+    const anchorDayIndex = Math.max(0, Math.floor(alignDown(startTime, DAY_MS) / DAY_MS) - 1);
+    const anchorClose = this.dailyCandles(symbol, anchorDayIndex * DAY_MS, 1)[0].close;
+
     const candles: Candle[] = [];
-    let prevClose = this.basePrice(symbol);
+    let prevClose = anchorClose;
     for (let i = 0; i < count; i++) {
       const timestamp = startTime + i * intervalMs;
       const open = prevClose;

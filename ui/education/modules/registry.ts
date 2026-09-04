@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import { Module1WhatIsAStock } from './Module1WhatIsAStock';
 import { Module2ReadingAQuote } from './Module2ReadingAQuote';
 import { Module3ChartsAndCandlesticks } from './Module3ChartsAndCandlesticks';
+import { Module4TrendAndPriceAction } from './Module4TrendAndPriceAction';
 
 export interface EducationModule {
   id: string;
@@ -32,5 +33,12 @@ export const educationModules: EducationModule[] = [
     title: 'Charts & Candlesticks',
     path: '/education/module-3',
     component: Module3ChartsAndCandlesticks,
+  },
+  {
+    id: 'module-4',
+    order: 4,
+    title: 'Trend & Price Action',
+    path: '/education/module-4',
+    component: Module4TrendAndPriceAction,
   },
 ];

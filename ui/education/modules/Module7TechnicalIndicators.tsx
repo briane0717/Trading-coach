@@ -1,6 +1,6 @@
 import { VideoEmbed } from '../VideoEmbed';
 import { CandlestickChart } from '../CandlestickChart';
-import { calculateEMA, calculateRSI, calculateSMA } from '../indicators';
+import { calculateEMA, calculateMACD, calculateRSI, calculateSMA } from '../indicators';
 import { UPTREND_EXAMPLE_CANDLES } from './Module4TrendAndPriceAction';
 import type { Candle } from '../../../normalized';
 
@@ -84,7 +84,95 @@ const RSI_DIVERGENCE_CANDLES: Candle[] = [
 ];
 
 /**
- * Education · Module 7, sections 1-2 of 5: Moving Averages, then RSI. Both use
+ * Fresh, hand-authored 66-bar series built only for this module's MACD section — a
+ * downtrend (not a straight line: it flattens briefly around a failed bounce, then resumes)
+ * that reverses into an uptrend, constructed so MACD(12,26,9) actually crosses bullish
+ * partway through with visible runway on both sides. MACD(12,26,9) needs 34 bars before its
+ * first exposed point (26 for the slow EMA, 9 more for the signal line), so the decline had
+ * to stay steep enough through at least bar 34 that the crossover doesn't happen "off
+ * screen" before any data is visible — an early version of this series had exactly that bug
+ * (the crossover was already positive at the very first exposed point).
+ *
+ * Four conditions were checked programmatically against `calculateMACD`'s real output
+ * before this array was finalized: (1) MACD stays below signal throughout the visible
+ * pre-crossover runway; (2) an actual crossover occurs; (3) MACD stays above signal for a
+ * meaningful stretch afterward (>= 8 bars, no immediate re-cross); (4) the histogram's sign
+ * flips from negative to positive exactly at the crossover bar. The crossover lands on
+ * 2026-02-17 (histogram goes from -0.068 the prior bar to +0.024), with 10 visible bars of
+ * MACD-below-signal beforehand and 22 of MACD-above-signal after — this is the exact array
+ * that passed all four checks.
+ */
+const MACD_CROSSOVER_CANDLES: Candle[] = [
+  { timestamp: 1767571200000, open: 100, high: 100.35, low: 98.36, close: 98.7, volume: 1160000 },
+  { timestamp: 1767657600000, open: 98.7, high: 99.08, low: 96.83, close: 97.2, volume: 1200000 },
+  { timestamp: 1767744000000, open: 97.2, high: 97.53, low: 95.67, close: 96, volume: 1140000 },
+  { timestamp: 1767830400000, open: 96, high: 96.36, low: 94.24, close: 94.6, volume: 1180000 },
+  { timestamp: 1767916800000, open: 94.6, high: 94.92, low: 93.19, close: 93.5, volume: 1120000 },
+  { timestamp: 1768003200000, open: 93.5, high: 93.89, low: 91.51, close: 91.9, volume: 1220000 },
+  { timestamp: 1768089600000, open: 91.9, high: 92.25, low: 90.26, close: 90.6, volume: 1160000 },
+  { timestamp: 1768176000000, open: 90.6, high: 90.9, low: 89.3, close: 89.6, volume: 1100000 },
+  { timestamp: 1768262400000, open: 89.6, high: 89.93, low: 88.07, close: 88.4, volume: 1140000 },
+  { timestamp: 1768348800000, open: 88.4, high: 88.76, low: 86.64, close: 87, volume: 1180000 },
+  { timestamp: 1768435200000, open: 87, high: 87.33, low: 85.47, close: 85.8, volume: 1140000 },
+  { timestamp: 1768521600000, open: 85.8, high: 86.16, low: 84.04, close: 84.4, volume: 1180000 },
+  { timestamp: 1768608000000, open: 84.4, high: 84.72, low: 82.99, close: 83.3, volume: 1120000 },
+  { timestamp: 1768694400000, open: 83.3, high: 83.65, low: 81.66, close: 82, volume: 1160000 },
+  { timestamp: 1768780800000, open: 82, high: 82.3, low: 80.7, close: 81, volume: 1100000 },
+  { timestamp: 1768867200000, open: 81, high: 81.84, low: 80.76, close: 81.6, volume: 1020000 },
+  { timestamp: 1768953600000, open: 81.6, high: 82.32, low: 81.38, close: 82.1, volume: 1000000 },
+  { timestamp: 1769040000000, open: 82.1, high: 82.31, low: 81.49, close: 81.7, volume: 980000 },
+  { timestamp: 1769126400000, open: 81.7, high: 82.31, low: 81.49, close: 82.1, volume: 980000 },
+  { timestamp: 1769212800000, open: 82.1, high: 82.34, low: 81.26, close: 81.5, volume: 1020000 },
+  { timestamp: 1769299200000, open: 81.5, high: 81.88, low: 79.63, close: 80, volume: 1200000 },
+  { timestamp: 1769385600000, open: 80, high: 80.41, low: 77.9, close: 78.3, volume: 1240000 },
+  { timestamp: 1769472000000, open: 78.3, high: 78.66, low: 76.54, close: 76.9, volume: 1180000 },
+  { timestamp: 1769558400000, open: 76.9, high: 77.29, low: 74.91, close: 75.3, volume: 1220000 },
+  { timestamp: 1769644800000, open: 75.3, high: 75.65, low: 73.66, close: 74, volume: 1160000 },
+  { timestamp: 1769731200000, open: 74, high: 74.38, low: 72.13, close: 72.5, volume: 1200000 },
+  { timestamp: 1769817600000, open: 72.5, high: 72.83, low: 70.97, close: 71.3, volume: 1140000 },
+  { timestamp: 1769904000000, open: 71.3, high: 71.66, low: 69.54, close: 69.9, volume: 1180000 },
+  { timestamp: 1769990400000, open: 69.9, high: 70.22, low: 68.49, close: 68.8, volume: 1120000 },
+  { timestamp: 1770076800000, open: 68.8, high: 69.15, low: 67.16, close: 67.5, volume: 1160000 },
+  { timestamp: 1770163200000, open: 67.5, high: 67.83, low: 65.97, close: 66.3, volume: 1140000 },
+  { timestamp: 1770249600000, open: 66.3, high: 66.66, low: 64.54, close: 64.9, volume: 1180000 },
+  { timestamp: 1770336000000, open: 64.9, high: 65.22, low: 63.49, close: 63.8, volume: 1120000 },
+  { timestamp: 1770422400000, open: 63.8, high: 64.15, low: 62.16, close: 62.5, volume: 1160000 },
+  { timestamp: 1770508800000, open: 62.5, high: 62.8, low: 61.2, close: 61.5, volume: 1100000 },
+  { timestamp: 1770595200000, open: 61.5, high: 61.83, low: 59.97, close: 60.3, volume: 1140000 },
+  { timestamp: 1770681600000, open: 60.3, high: 60.65, low: 58.66, close: 59, volume: 1160000 },
+  { timestamp: 1770768000000, open: 59, high: 59.32, low: 57.59, close: 57.9, volume: 1120000 },
+  { timestamp: 1770854400000, open: 57.9, high: 58.23, low: 56.37, close: 56.7, volume: 1140000 },
+  { timestamp: 1770940800000, open: 56.7, high: 57, low: 55.4, close: 55.7, volume: 1100000 },
+  { timestamp: 1771027200000, open: 55.7, high: 55.96, low: 54.75, close: 55, volume: 1040000 },
+  { timestamp: 1771113600000, open: 55, high: 55.24, low: 54.16, close: 54.4, volume: 1020000 },
+  { timestamp: 1771200000000, open: 54.4, high: 54.63, low: 53.68, close: 53.9, volume: 1000000 },
+  { timestamp: 1771286400000, open: 53.9, high: 54.14, low: 53.06, close: 53.3, volume: 1020000 },
+  { timestamp: 1771372800000, open: 53.3, high: 53.51, low: 52.69, close: 52.9, volume: 980000 },
+  { timestamp: 1771459200000, open: 52.9, high: 53.13, low: 52.18, close: 52.4, volume: 1000000 },
+  { timestamp: 1771545600000, open: 52.4, high: 52.6, low: 51.91, close: 52.1, volume: 960000 },
+  { timestamp: 1771632000000, open: 52.1, high: 52.31, low: 51.49, close: 51.7, volume: 980000 },
+  { timestamp: 1771718400000, open: 51.7, high: 52.2, low: 51.51, close: 52, volume: 960000 },
+  { timestamp: 1771804800000, open: 52, high: 52.21, low: 51.39, close: 51.6, volume: 980000 },
+  { timestamp: 1771891200000, open: 51.6, high: 52.33, low: 51.38, close: 52.1, volume: 1000000 },
+  { timestamp: 1771977600000, open: 52.1, high: 52.3, low: 51.61, close: 51.8, volume: 960000 },
+  { timestamp: 1772064000000, open: 51.8, high: 52.41, low: 51.59, close: 52.2, volume: 980000 },
+  { timestamp: 1772150400000, open: 52.2, high: 52.38, low: 51.82, close: 52, volume: 940000 },
+  { timestamp: 1772236800000, open: 52, high: 52.5, low: 51.81, close: 52.3, volume: 960000 },
+  { timestamp: 1772323200000, open: 52.3, high: 52.47, low: 52.04, close: 52.2, volume: 920000 },
+  { timestamp: 1772409600000, open: 52.2, high: 53.39, low: 51.92, close: 53.1, volume: 1080000 },
+  { timestamp: 1772496000000, open: 53.1, high: 54.52, low: 52.79, close: 54.2, volume: 1120000 },
+  { timestamp: 1772582400000, open: 54.2, high: 55.27, low: 53.93, close: 55, volume: 1060000 },
+  { timestamp: 1772668800000, open: 55, high: 56.53, low: 54.67, close: 56.2, volume: 1140000 },
+  { timestamp: 1772755200000, open: 56.2, high: 57.5, low: 55.9, close: 57.2, volume: 1100000 },
+  { timestamp: 1772841600000, open: 57.2, high: 58.85, low: 56.86, close: 58.5, volume: 1160000 },
+  { timestamp: 1772928000000, open: 58.5, high: 59.92, low: 58.19, close: 59.6, volume: 1120000 },
+  { timestamp: 1773014400000, open: 59.6, high: 61.36, low: 59.24, close: 61, volume: 1180000 },
+  { timestamp: 1773100800000, open: 61, high: 62.53, low: 60.67, close: 62.2, volume: 1140000 },
+  { timestamp: 1773187200000, open: 62.2, high: 64.08, low: 61.83, close: 63.7, volume: 1200000 },
+];
+
+/**
+ * Education · Module 7, sections 1-3 of 5: Moving Averages, RSI, then MACD. All three use
  * `ui/education/indicators.ts` (the thin wrapper around `data-providers/internal/indicators.ts`
  * — see that file's header for why this is the single place in the repo computing this math).
  *
@@ -92,7 +180,7 @@ const RSI_DIVERGENCE_CANDLES: Candle[] = [
  * CandlestickChart's `overlayLines` prop, so the same chart already familiar from
  * swing-high/swing-low teaching now carries moving-average lines too. Deliberately stops
  * short of a crossover example — two MAs of different lengths crossing is exactly what
- * MACD (a later section) does, so that mechanic is taught once, there, instead of twice.
+ * MACD does, so that mechanic is taught once, in section 3, instead of twice.
  *
  * Section 2 (RSI) uses a fresh, hand-authored 60-bar series (`RSI_DIVERGENCE_CANDLES`, this
  * file) built specifically to show bearish divergence at realistic magnitudes: RSI(14)
@@ -103,17 +191,25 @@ const RSI_DIVERGENCE_CANDLES: Candle[] = [
  * (RSI > 70 at the first high; second high's price above the first's; second high's RSI
  * below the first's; second high's RSI below 70) — see the verification script referenced
  * in the commit that revised this section. Renders via CandlestickChart's `oscillatorPane`
- * prop (added alongside this section), which gives RSI its own 0-100 sub-pane instead of
- * sharing the price scale.
+ * prop, which gives RSI its own 0-100 sub-pane instead of sharing the price scale.
  *
- * MACD, ATR, and VWAP are separate sections still to be added. The end-of-module quiz is
- * deferred until all five indicators exist, so it can cover all of them at once instead of
- * one quiz per section.
+ * Section 3 (MACD) uses a fresh, hand-authored 66-bar series (`MACD_CROSSOVER_CANDLES`,
+ * this file) built to show an actual bullish MACD/signal crossover with visible runway on
+ * both sides: a downtrend, a reversal, then an uptrend. Four conditions were checked
+ * programmatically against `calculateMACD`'s actual output before this array was committed
+ * — see that constant's doc comment for the specifics. Renders via CandlestickChart's
+ * `macdPane` prop (added alongside this section), which gives MACD's two lines and
+ * histogram their own shared sub-pane.
+ *
+ * ATR and VWAP are separate sections still to be added. The end-of-module quiz is deferred
+ * until all five indicators exist, so it can cover all of them at once instead of one quiz
+ * per section.
  */
 export function Module7TechnicalIndicators() {
   const sma20 = calculateSMA(UPTREND_EXAMPLE_CANDLES, 20);
   const ema20 = calculateEMA(UPTREND_EXAMPLE_CANDLES, 20);
   const rsi14 = calculateRSI(RSI_DIVERGENCE_CANDLES, 14);
+  const macd = calculateMACD(MACD_CROSSOVER_CANDLES, 12, 26, 9);
 
   return (
     <article className="module">
@@ -287,6 +383,91 @@ export function Module7TechnicalIndicators() {
               { value: 70, label: 'Overbought (70)', color: '#dc2626' },
               { value: 30, label: 'Oversold (30)', color: '#16a34a' },
             ],
+          }}
+        />
+      </section>
+
+      <section>
+        <h2>MACD: two moving averages compared</h2>
+        <p>
+          The moving-average section above stopped short of comparing two moving averages
+          of different speeds to each other — that comparison is exactly what{' '}
+          <strong>MACD (Moving Average Convergence/Divergence)</strong> is. It's built from
+          three pieces:
+        </p>
+        <ul>
+          <li>
+            The <strong>MACD line</strong>: a fast 12-period EMA of price minus a slower
+            26-period EMA of price. When the fast EMA is above the slow one, MACD is
+            positive; when it's below, MACD is negative. The further apart the two EMAs
+            get, the larger MACD's value in either direction.
+          </li>
+          <li>
+            The <strong>signal line</strong>: a 9-period EMA of the MACD line itself — a
+            moving average of a moving-average comparison, one level removed from price.
+          </li>
+          <li>
+            The <strong>histogram</strong>: MACD line minus signal line, plotted as bars.
+            It's just the gap between the two lines made visible — positive bars when MACD
+            is above signal, negative bars when it's below, and the bars grow or shrink as
+            that gap widens or narrows.
+          </li>
+        </ul>
+        <p>
+          A <strong>bullish crossover</strong> — the MACD line crossing above the signal
+          line — is the headline signal traders watch for. It means the fast/slow EMA
+          relationship has just tilted from "recent price weaker than the trailing average"
+          to "recent price stronger than the trailing average." A bearish crossover is the
+          mirror image, MACD crossing below signal.
+        </p>
+      </section>
+
+      <VideoEmbed
+        youtubeId="HZtJCCRvgJo"
+        title="MACD Indicator Explained Simply (MACD Line, Signal Line, Histogram, Crossover, Zero Line) — Mind Math Money"
+        caption="Mind Math Money: MACD Indicator Explained Simply"
+      />
+
+      <section>
+        <h2>A bullish crossover, start to finish</h2>
+        <p>
+          The chart below is a fresh example: a downtrend that runs from about{' '}
+          <strong>$98.70</strong> down to about <strong>$51.60</strong> over roughly seven
+          weeks, then reverses into an uptrend that climbs back to about{' '}
+          <strong>$63.70</strong>. It isn't a straight line down — there's a failed bounce
+          partway through — but the overall direction is clear: a real downtrend, followed
+          by a real uptrend.
+        </p>
+        <p>
+          Look at the MACD pane underneath. For the first{' '}
+          <strong>10 visible bars</strong> (2026-02-07 through 2026-02-16), the MACD line
+          sits below the signal line and the histogram prints negative — momentum is still
+          pointed down, consistent with the downtrend still in force. On{' '}
+          <strong>2026-02-17</strong>, the MACD line crosses <strong>above</strong> the
+          signal line — the histogram flips from about <strong>-0.07</strong> the day
+          before to about <strong>+0.02</strong>. MACD then stays above signal for the next{' '}
+          <strong>22 bars</strong> straight, with the histogram growing to about{' '}
+          <strong>+1.90</strong> by the end of the chart, as the uptrend builds momentum.
+        </p>
+        <p>
+          Notice the crossover (2026-02-17, price <strong>$53.30</strong>) happens{' '}
+          <em>before</em> price actually bottoms (2026-02-23, price <strong>$51.60</strong>)
+          — price keeps drifting slightly lower for a few more bars even after MACD has
+          already turned up. That's normal, not a bug: MACD reacts to the rate of change in
+          an EMA-smoothed average, which can start improving before the very last low
+          prints. Like every signal in this module, a crossover is evidence to weigh, not a
+          guarantee — MACD can whipsaw back and forth in a choppy market the same way any
+          other indicator can.
+        </p>
+        <CandlestickChart
+          symbol="Example: MACD Bullish Crossover"
+          timeframe="1d"
+          candles={MACD_CROSSOVER_CANDLES}
+          sourceType="simulated"
+          macdPane={{
+            macdLine: { label: 'MACD', color: '#2563eb', points: macd.macdLine },
+            signalLine: { label: 'Signal', color: '#dc2626', points: macd.signalLine },
+            histogram: { points: macd.histogram },
           }}
         />
       </section>

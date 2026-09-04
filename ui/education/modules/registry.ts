@@ -7,6 +7,7 @@ import { Module5VolumeAndWhatItTellsYou } from './Module5VolumeAndWhatItTellsYou
 import { Module6SupportAndResistance } from './Module6SupportAndResistance';
 import { Module7TechnicalIndicators } from './Module7TechnicalIndicators';
 import { Module8VolatilityAndRisk } from './Module8VolatilityAndRisk';
+import { Module9RiskManagement } from './Module9RiskManagement';
 
 export interface EducationModule {
   id: string;
@@ -72,5 +73,12 @@ export const educationModules: EducationModule[] = [
     title: 'Volatility & Risk Basics',
     path: '/education/module-8',
     component: Module8VolatilityAndRisk,
+  },
+  {
+    id: 'module-9',
+    order: 9,
+    title: 'Risk Management',
+    path: '/education/module-9',
+    component: Module9RiskManagement,
   },
 ];

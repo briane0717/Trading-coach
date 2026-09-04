@@ -36,6 +36,7 @@ export function CandlestickChart({
   priceLines,
   overlayLines,
   oscillatorPane,
+  macdPane,
 }: {
   symbol: string;
   timeframe: Timeframe;
@@ -60,6 +61,22 @@ export function CandlestickChart({
     color: string;
     points: { timestamp: number; value: number }[];
     referenceLines?: { value: number; label: string; color?: string }[];
+  };
+  /**
+   * MACD's own sub-pane: two lines (MACD, signal) plus a positive/negative histogram of
+   * their gap, all sharing one scale. Kept separate from `oscillatorPane` rather than
+   * generalizing it to multiple lines — MACD's shape (two lines + a histogram) is
+   * different enough from a single bounded oscillator like RSI that forcing them through
+   * one prop would make both call sites harder to read for no shared benefit.
+   */
+  macdPane?: {
+    macdLine: { label: string; color: string; points: { timestamp: number; value: number }[] };
+    signalLine: { label: string; color: string; points: { timestamp: number; value: number }[] };
+    histogram: {
+      points: { timestamp: number; value: number }[];
+      positiveColor?: string;
+      negativeColor?: string;
+    };
   };
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -176,6 +193,64 @@ export function CandlestickChart({
       chart.panes()[oscillatorPaneIndex]?.setStretchFactor(0.35);
     }
 
+    let macdLineSeries: ISeriesApi<'Line'> | null = null;
+    let macdSignalSeries: ISeriesApi<'Line'> | null = null;
+    let macdHistogramSeries: ISeriesApi<'Histogram'> | null = null;
+    if (macdPane) {
+      const macdPaneIndex = 1 + (volumeSeries ? 1 : 0) + (oscillatorPane ? 1 : 0);
+
+      macdHistogramSeries = chart.addSeries(
+        HistogramSeries,
+        { priceScaleId: 'macd' },
+        macdPaneIndex
+      );
+      const posColor = macdPane.histogram.positiveColor ?? '#16a34a';
+      const negColor = macdPane.histogram.negativeColor ?? '#dc2626';
+      macdHistogramSeries.setData(
+        macdPane.histogram.points.map((p) => ({
+          time: Math.floor(p.timestamp / 1000) as import('lightweight-charts').UTCTimestamp,
+          value: p.value,
+          color: p.value >= 0 ? posColor : negColor,
+        }))
+      );
+
+      macdLineSeries = chart.addSeries(
+        LineSeries,
+        {
+          color: macdPane.macdLine.color,
+          lineWidth: 2,
+          title: macdPane.macdLine.label,
+          priceScaleId: 'macd',
+        },
+        macdPaneIndex
+      );
+      macdLineSeries.setData(
+        macdPane.macdLine.points.map((p) => ({
+          time: Math.floor(p.timestamp / 1000) as import('lightweight-charts').UTCTimestamp,
+          value: p.value,
+        }))
+      );
+
+      macdSignalSeries = chart.addSeries(
+        LineSeries,
+        {
+          color: macdPane.signalLine.color,
+          lineWidth: 2,
+          title: macdPane.signalLine.label,
+          priceScaleId: 'macd',
+        },
+        macdPaneIndex
+      );
+      macdSignalSeries.setData(
+        macdPane.signalLine.points.map((p) => ({
+          time: Math.floor(p.timestamp / 1000) as import('lightweight-charts').UTCTimestamp,
+          value: p.value,
+        }))
+      );
+
+      chart.panes()[macdPaneIndex]?.setStretchFactor(0.35);
+    }
+
     const handleResize = () => {
       if (containerRef.current) {
         chart.applyOptions({ width: containerRef.current.clientWidth });
@@ -205,6 +280,9 @@ export function CandlestickChart({
         priceLineHandles.forEach((handle) => series.removePriceLine(handle));
         overlaySeriesHandles.forEach((handle) => chart.removeSeries(handle));
         if (oscillatorSeries) chart.removeSeries(oscillatorSeries);
+        if (macdLineSeries) chart.removeSeries(macdLineSeries);
+        if (macdSignalSeries) chart.removeSeries(macdSignalSeries);
+        if (macdHistogramSeries) chart.removeSeries(macdHistogramSeries);
         chart.remove();
         chartRef.current = null;
       };
@@ -238,10 +316,23 @@ export function CandlestickChart({
       priceLineHandles.forEach((handle) => series.removePriceLine(handle));
       overlaySeriesHandles.forEach((handle) => chart.removeSeries(handle));
       if (oscillatorSeries) chart.removeSeries(oscillatorSeries);
+      if (macdLineSeries) chart.removeSeries(macdLineSeries);
+      if (macdSignalSeries) chart.removeSeries(macdSignalSeries);
+      if (macdHistogramSeries) chart.removeSeries(macdHistogramSeries);
       chart.remove();
       chartRef.current = null;
     };
-  }, [symbol, timeframe, candles, sourceType, showVolume, priceLines, overlayLines, oscillatorPane]);
+  }, [
+    symbol,
+    timeframe,
+    candles,
+    sourceType,
+    showVolume,
+    priceLines,
+    overlayLines,
+    oscillatorPane,
+    macdPane,
+  ]);
 
   return (
     <div className="candlestick-chart">

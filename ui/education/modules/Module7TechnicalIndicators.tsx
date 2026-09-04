@@ -195,7 +195,7 @@ const MACD_CROSSOVER_CANDLES: Candle[] = [
  * price, roughly 3.6x the calm-phase reading. This is the exact array that passed both
  * checks on the first attempt.
  */
-const ATR_VOLATILITY_CANDLES: Candle[] = [
+export const ATR_VOLATILITY_CANDLES: Candle[] = [
   { timestamp: 1767571200000, open: 80, high: 80.65, low: 79.65, close: 80.3, volume: 900000 },
   { timestamp: 1767657600000, open: 80.3, high: 80.6, low: 79.8, close: 80.1, volume: 880000 },
   { timestamp: 1767744000000, open: 80.1, high: 80.85, low: 79.75, close: 80.5, volume: 920000 },

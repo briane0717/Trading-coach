@@ -241,7 +241,7 @@ const ATR_VOLATILITY_CANDLES: Candle[] = [
  * other series in this module, these timestamps span one trading day, not many, since VWAP
  * is a same-session indicator. Three phases: a 10-bar morning rally that pulls price well
  * above the still-rising VWAP, a 6-bar pullback that dips down to test VWAP (the low of the
- * 16:30 bar comes within a cent of the VWAP value at that same timestamp) without any bar's
+ * 12:30 bar comes within a cent of the VWAP value at that same timestamp) without any bar's
  * close dropping below it, then an 11-bar bounce back to a new session high.
  *
  * Two conditions were checked programmatically against `calculateVWAP`'s real output before
@@ -719,12 +719,12 @@ export function Module7TechnicalIndicators() {
           <strong>15-minute bars spanning one trading session</strong> (2026-03-16,
           09:30-16:00) — the timeframe VWAP is actually built for. Price opens at{' '}
           <strong>$50.00</strong>, rallies through the morning to <strong>$51.25</strong> by
-          10:45, pulls back through midday, then bounces to close the session at a new high
+          11:45, pulls back through midday, then bounces to close the session at a new high
           of <strong>$52.88</strong>.
         </p>
         <p>
           Watch VWAP (the overlay line) during the midday pullback. At{' '}
-          <strong>16:30</strong>, price dips to a low of <strong>$50.80</strong> — almost
+          <strong>12:30</strong>, price dips to a low of <strong>$50.80</strong> — almost
           exactly VWAP's value at that same moment, <strong>$50.81</strong> — before closing
           that bar back up at <strong>$51.15</strong>. Price tested VWAP and held above it,
           the same "test, don't close below" pattern as the ATR section's support levels.

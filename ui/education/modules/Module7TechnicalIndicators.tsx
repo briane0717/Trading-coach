@@ -1,5 +1,6 @@
 import { VideoEmbed } from '../VideoEmbed';
 import { CandlestickChart } from '../CandlestickChart';
+import { Quiz, type QuizQuestion } from '../Quiz';
 import {
   calculateATR,
   calculateEMA,
@@ -280,6 +281,356 @@ const VWAP_INTRADAY_CANDLES: Candle[] = [
   { timestamp: 1773691200000, open: 52.75, high: 52.94, low: 52.72, close: 52.88, volume: 210000 },
 ];
 
+const MA_QUIZ_QUESTIONS: QuizQuestion[] = [
+  {
+    id: 'ma-what-it-is',
+    prompt: 'What is a moving average, in the way this section defines it?',
+    choices: [
+      'A fixed price level that price tends to bounce off of',
+      'A running average of the last N closing prices, recalculated on every new candle so it slides forward one bar at a time',
+      'The single closing price from N candles ago',
+      'A count of how many candles closed higher than the prior candle in the last N periods',
+    ],
+    correctIndex: 1,
+    explanation:
+      "A moving average takes the last N closing prices and averages them, then recalculates that average on every new candle — a running average that slides forward one bar at a time. Because it's built from an average of recent prices rather than the current price alone, it both smooths out noise and lags behind price.",
+  },
+  {
+    id: 'ma-sma-ema-lag',
+    prompt:
+      "SMA(20) and EMA(20) use the same 20-period length, but during the pullback at the right edge of the example chart, EMA(20)'s day-over-day gain shrank from about +$1.35 to about +$0.61 while SMA(20)'s gain barely moved from roughly +$0.90. What explains the difference?",
+    choices: [
+      'SMA(20) and EMA(20) were calculated over different numbers of candles',
+      'EMA weights recent closes more heavily than older ones, so it reacts to a new move (like the pullback) faster than SMA, which weights every one of the last 20 closes equally',
+      "EMA doesn't lag price at all, while SMA always lags",
+      'The chart data was different for the two lines',
+    ],
+    correctIndex: 1,
+    explanation:
+      "Same period length, two different amounts of lag — that's the whole point of this example. EMA weights recent closes more heavily, so it responds to the pullback faster than SMA, which treats a close from 18 bars ago exactly the same as yesterday's close until it drops out of the window. EMA is still lagging price — it's still an average — just less than SMA.",
+  },
+  {
+    id: 'ma-neither-better',
+    prompt:
+      "The section says neither SMA nor EMA is \"better\" in every situation. What's the actual tradeoff between them?",
+    choices: [
+      'SMA is always more accurate; EMA is only useful for very short-term trading',
+      'There is no real tradeoff — EMA is strictly superior since it reacts faster',
+      'A longer-lag SMA filters out more noise but reacts slower to a genuine change in direction; a faster EMA catches that change sooner but also wobbles more on noise that isn’t a real change',
+      'SMA only works on uptrends, and EMA only works on downtrends',
+    ],
+    correctIndex: 2,
+    explanation:
+      "It's a tradeoff between smoothness and responsiveness, not a right answer. SMA's extra lag filters out more noise but reacts slower to a genuine change in direction; EMA's faster reaction catches a real change sooner but is also quicker to wobble on noise that isn't one.",
+  },
+  {
+    id: 'ma-dynamic-support-hedge',
+    prompt:
+      "In the uptrend example, both moving averages ran below the candles for most of the chart, and some traders watch a rising MA like this as \"dynamic support.\" How does the section frame that idea?",
+    choices: [
+      'As a guarantee — price is mathematically prevented from closing below a rising moving average',
+      "As a level worth watching that a rising MA tends to sit under an uptrend's price, similar to Module 6's support levels — a tendency, not a rule the moving average is obligated to respect",
+      'As a discredited idea no real traders actually use',
+      'As proof that the stock will keep rising indefinitely',
+    ],
+    correctIndex: 1,
+    explanation:
+      "Same hedge as everywhere else in this module: a rising moving average sitting below price is a real, watchable tendency — some traders treat it as a floor that rises with the trend — but, like Module 6's static support levels, it's a tendency worth watching, not a rule the moving average is obligated to respect.",
+  },
+  {
+    id: 'ma-deliberate-omission',
+    prompt:
+      'This section deliberately does not build a moving-average crossover example (two MAs of different lengths crossing to signal a trend change). Why not?',
+    choices: [
+      "Crossovers don't work and were left out because they're unreliable",
+      'That exact comparison — a fast moving average against a slow one — is what MACD does, so it’s taught once there instead of being built twice',
+      "There wasn't enough chart data available to build a crossover example",
+      "Crossovers require RSI, which hadn't been introduced yet",
+    ],
+    correctIndex: 1,
+    explanation:
+      "The section says it directly: comparing two moving averages of different lengths is exactly what MACD does. Rather than teach that mechanic twice, it's built once, in the MACD section, and the moving-average section stops short of it on purpose.",
+  },
+];
+
+const RSI_QUIZ_QUESTIONS: QuizQuestion[] = [
+  {
+    id: 'rsi-what-it-measures',
+    prompt: 'What does RSI actually measure, as distinct from a moving average?',
+    choices: [
+      'The same thing as a moving average, just scaled from 0 to 100',
+      'Momentum — the speed and size of recent price changes — calculated from the ratio of average gains to average losses over the last 14 candles',
+      'Trading volume relative to the 50-day average',
+      'The exact number of up days versus down days in the last year',
+    ],
+    correctIndex: 1,
+    explanation:
+      "A moving average is built from price itself. RSI is different — it measures momentum, the speed and size of recent price changes, calculated from the ratio of average gains to average losses over the last 14 candles and scaled to run from 0 to 100.",
+  },
+  {
+    id: 'rsi-divergence-example-numbers',
+    prompt: 'In the divergence example, what happened at the two swing highs?',
+    choices: [
+      'Price and RSI both made new highs at the same time — pure confirmation, no divergence',
+      'The first high (2026-01-21, $114.81) had RSI around 83; the second, higher high (2026-03-01, $116.02) had RSI around only 64 — a lower RSI reading despite a higher price',
+      'RSI was higher at the second high even though price was lower',
+      'Both swing highs had RSI readings below 30',
+    ],
+    correctIndex: 1,
+    explanation:
+      "That gap is the whole example: price made a new high ($116.02 versus $114.81 before), but RSI made a lower high (about 64 versus about 83 before) at that same point. Price made more progress the second time; momentum did not.",
+  },
+  {
+    id: 'rsi-divergence-definition',
+    prompt: "What specifically makes a pattern \"bearish divergence,\" as this section defines it?",
+    choices: [
+      'Any time RSI drops below 50',
+      'Price falling while RSI rises',
+      "Price making a higher high while RSI makes a lower high at that same point — momentum fading even though price itself hasn't turned down",
+      'RSI crossing above 70 for the first time in a chart',
+    ],
+    correctIndex: 2,
+    explanation:
+      "Bearish divergence specifically means price making a higher high while RSI makes a lower high at the same point — evidence that the buying pressure behind the advance is fading, even though price hasn't turned down yet. It's not just \"RSI went down\" on its own.",
+  },
+  {
+    id: 'rsi-divergence-hedge',
+    prompt:
+      'The section explicitly cautions against reading this divergence example as a prediction. Why?',
+    choices: [
+      'Because divergence is purely random and never means anything',
+      "Because plenty of divergences resolve with price simply continuing higher until price and momentum agree again, and only some precede a real reversal — it's a caution flag to weigh, not a signal that tells you what to do next",
+      "Because this particular chart doesn't actually show real divergence",
+      'Because RSI divergence only applies to oversold conditions, not overbought ones',
+    ],
+    correctIndex: 1,
+    explanation:
+      "Like every other pattern in this module, divergence gets a hedge: plenty of divergences resolve with price simply continuing higher until momentum and price eventually agree again, and some do precede a real reversal. It's one more piece of evidence to read alongside price, not a signal that tells you what to do next.",
+  },
+  {
+    id: 'rsi-70-30-hedge',
+    prompt: 'How does the section frame the 70/30 overbought/oversold levels?',
+    choices: [
+      'As hard thresholds — RSI is mathematically prevented from exceeding 70 in a healthy market',
+      'As widely-watched reference points, not hard rules — a strong uptrend can hold RSI above 70 for a long stretch without reversing, the same way a stock can punch through a resistance level instead of stopping at it',
+      'As arbitrary numbers with no real trading relevance',
+      'As levels that guarantee a reversal the moment they are touched',
+    ],
+    correctIndex: 1,
+    explanation:
+      "Same treatment as Module 6's support and resistance levels: 70 and 30 are widely-watched reference points, not hard rules. A strong uptrend can hold RSI above 70 for a long stretch without reversing — overbought doesn't mean \"sell now,\" it means momentum is currently running hot.",
+  },
+];
+
+const MACD_QUIZ_QUESTIONS: QuizQuestion[] = [
+  {
+    id: 'macd-three-pieces',
+    prompt: 'MACD is built from three pieces. What are they?',
+    choices: [
+      'A fast EMA, a slow EMA, and trading volume',
+      'The MACD line (fast 12-period EMA minus slow 26-period EMA), the signal line (a 9-period EMA of the MACD line), and the histogram (MACD line minus signal line)',
+      'RSI, ATR, and VWAP combined into one indicator',
+      'Support, resistance, and a moving average',
+    ],
+    correctIndex: 1,
+    explanation:
+      "MACD line = fast 12-period EMA of price minus slower 26-period EMA of price. Signal line = a 9-period EMA of the MACD line itself. Histogram = MACD line minus signal line, plotted as bars — just the gap between the two lines made visible.",
+  },
+  {
+    id: 'macd-crossover-lag',
+    prompt:
+      'The crossover in the example happened on 2026-02-17 at a price of $53.30, but the actual low didn’t print until 2026-02-23 at $51.60 — six bars later. How does the section frame this gap?',
+    choices: [
+      'As a bug in the example data that should be ignored',
+      'As proof MACD should never be used for downtrends',
+      "As a real limitation: MACD is built from smoothed averages, so it inherently lags price, and a crossover only confirms a shift in momentum after it's already underway — treating it as a precise entry point would have meant sitting through roughly $1.70 more of downside",
+      'As evidence that the crossover was actually wrong and momentum never really shifted',
+    ],
+    correctIndex: 2,
+    explanation:
+      "The section is explicit that this is a real limitation, not a footnote: MACD is built from smoothed averages, so it inherently lags price, and a crossover only confirms a shift in momentum after it's already underway. Treating this crossover as a precise entry point would have meant sitting through roughly $1.70 more of downside before the reversal actually took hold.",
+  },
+  {
+    id: 'macd-histogram-flip',
+    prompt: 'What actually happened to the histogram at the moment of the crossover?',
+    choices: [
+      'It stayed negative for another 22 bars',
+      'It flipped from about -0.07 the prior bar to about +0.02 — the sign flip that marks MACD crossing above signal',
+      'It jumped straight to +1.90 in a single bar',
+      'It disappeared from the chart entirely',
+    ],
+    correctIndex: 1,
+    explanation:
+      "On 2026-02-17, the histogram flipped from about -0.07 the day before to about +0.02 — that sign flip from negative to positive is the crossover itself made visible. From there it kept growing, reaching about +1.90 by the end of the chart as the uptrend built momentum.",
+  },
+  {
+    id: 'macd-histogram-meaning',
+    prompt: 'What does the MACD histogram actually represent?',
+    choices: [
+      'Trading volume for each bar',
+      'The gap between the MACD line and the signal line, made visible as bars — positive when MACD is above signal, negative when it is below, growing or shrinking as the gap widens or narrows',
+      'The raw price of the stock',
+      'A running count of how many bars MACD has been positive',
+    ],
+    correctIndex: 1,
+    explanation:
+      "The histogram is just MACD line minus signal line, plotted as bars — the gap between the two lines made visible. Positive bars mean MACD is above signal, negative bars mean it's below, and the bars grow or shrink as that gap widens or narrows.",
+  },
+  {
+    id: 'macd-bullish-vs-bearish',
+    prompt: 'What distinguishes a bullish MACD crossover from a bearish one?',
+    choices: [
+      'A bullish crossover is when histogram bars turn red instead of green',
+      'A bullish crossover is the MACD line crossing above the signal line; a bearish crossover is the mirror image, MACD crossing below signal',
+      'A bullish crossover only happens when RSI is also above 70',
+      'There is no meaningful difference between the two',
+    ],
+    correctIndex: 1,
+    explanation:
+      "A bullish crossover is the MACD line crossing above the signal line — the fast/slow EMA relationship tilting from \"recent price weaker than the trailing average\" to \"recent price stronger than the trailing average.\" A bearish crossover is the mirror image, MACD crossing below signal.",
+  },
+];
+
+const ATR_QUIZ_QUESTIONS: QuizQuestion[] = [
+  {
+    id: 'atr-what-it-measures',
+    prompt: 'What does ATR measure?',
+    choices: [
+      'Which direction price is likely to move next',
+      "How big a stock's price swings have recently been, regardless of direction — the average, over the last 14 candles, of each candle's true range",
+      'The total dollar volume traded over the last 14 candles',
+      'The distance between support and resistance levels',
+    ],
+    correctIndex: 1,
+    explanation:
+      "ATR measures something different from every other indicator in this module: how big a stock's price swings have recently been, regardless of which way they went. It's the average, over the last 14 candles, of each candle's true range — roughly the high-to-low distance, adjusted for any gap from the prior close.",
+  },
+  {
+    id: 'atr-not-directional',
+    prompt: 'Why does the section describe ATR as "explicitly not a directional signal"?',
+    choices: [
+      "Because ATR is calculated incorrectly and shouldn't be trusted",
+      "Because a rising or falling ATR only says how much price is moving bar to bar — neither one says whether price is going up or down, the same way volume in Module 5 didn't say which way price would break",
+      'Because ATR only works on stocks that are already trending',
+      'Because ATR is identical to RSI',
+    ],
+    correctIndex: 1,
+    explanation:
+      "A rising ATR means price is moving a lot bar to bar; a falling ATR means it's moving a little. Neither one says whether price is going up or down. The section draws a direct comparison to volume in Module 5, which also described magnitude/participation without predicting direction.",
+  },
+  {
+    id: 'atr-calm-vs-expansion-numbers',
+    prompt: 'How did ATR(14) actually change between the calm phase and the expansion phase in the example?',
+    choices: [
+      'It stayed flat around $0.93 the entire time',
+      'It fell from about 3.4% of price down to about 1.2%',
+      'It rose from about $0.93 (about 1.2% of the $80.20 price) at the end of the calm phase to about $3.38 (about 3.4% of the $99.60 price) by the last bar — roughly 3.6 times higher',
+      'It went negative during the breakout bar',
+    ],
+    correctIndex: 2,
+    explanation:
+      "By the end of the calm stretch, ATR(14) sat around $0.93 on an $80.20 close — about 1.2% of price. By the last bar, after the breakout and expansion phase, it had grown to about $3.38 on a $99.60 close — about 3.4% of price, roughly 3.6 times the calm-phase reading. Same stock, same indicator, a very different trading environment.",
+  },
+  {
+    id: 'atr-true-range',
+    prompt:
+      'True range is described as "roughly the high-to-low distance for that bar, adjusted for any gap from the prior close." Why does it need that adjustment?',
+    choices: [
+      "So that a bar that gaps sharply away from the prior close (beyond its own high-low range) still gets counted as volatile, not just bars with a wide intraday range",
+      'So that overnight gaps are always ignored entirely',
+      'Because high-low range alone always overstates volatility',
+      "The adjustment has nothing to do with gaps — it's a rounding correction",
+    ],
+    correctIndex: 0,
+    explanation:
+      "The \"adjusted for any gap from the prior close\" part matters specifically for bars that open away from where the prior bar closed. Without it, a bar with a big overnight/opening gap but a narrow intraday range could look artificially calm — the adjustment makes sure that kind of move still counts as volatility.",
+  },
+  {
+    id: 'atr-position-sizing',
+    prompt: 'Why does the section say ATR is worth remembering beyond this module?',
+    choices: [
+      'Because it is the most visually interesting indicator on a chart',
+      "Because it feeds directly into position sizing (Module 9) — the size of a stock's typical swing helps determine how many shares to trade so a normal move doesn't blow past a planned risk amount",
+      'Because every other indicator in this module depends on ATR being calculated first',
+      "Because ATR predicts the next day's closing price",
+    ],
+    correctIndex: 1,
+    explanation:
+      "This section flags a forward connection: ATR feeds directly into position sizing, covered in Module 9. Knowing the size of a stock's typical swing is what lets a trader size a position so that a normal, expected move doesn't exceed a planned risk amount — this section is the mechanism, Module 9 is where it gets used.",
+  },
+];
+
+const VWAP_QUIZ_QUESTIONS: QuizQuestion[] = [
+  {
+    id: 'vwap-vs-sma-ema',
+    prompt: 'How is VWAP built differently from SMA and EMA?',
+    choices: [
+      'VWAP is calculated only from volume, ignoring price entirely',
+      "VWAP weights each bar's price by that bar's volume, and it resets fresh at the start of every session, instead of using a trailing window of the last N bars carried over from the prior day",
+      'VWAP and EMA are calculated with the exact same formula',
+      'VWAP only exists on weekly charts, never daily or intraday',
+    ],
+    correctIndex: 1,
+    explanation:
+      "Two differences from SMA/EMA: VWAP is volume-weighted (a heavy-volume move pulls it harder than a quiet one, while SMA/EMA treat every close as equally important regardless of volume), and it resets every session — a cumulative average starting fresh at the day's open, not a trailing window carried over from the day before.",
+  },
+  {
+    id: 'vwap-intraday-tool-hedge',
+    prompt:
+      'The section is explicit that VWAP is "most commonly an intraday, day-trading tool." How does it still connect that to a swing trader?',
+    choices: [
+      'It says swing traders should ignore VWAP entirely and never look at it',
+      'It says a swing trader can still use VWAP as a quick read on intraday tone — where price sits relative to VWAP partway through the day — without turning it into a day-trading strategy',
+      'It claims VWAP works identically whether plotted across a single day or across many weeks',
+      'It says VWAP should replace SMA/EMA in every swing-trading example',
+    ],
+    correctIndex: 1,
+    explanation:
+      "The section is upfront that VWAP doesn't mean much plotted across weeks the way SMA/EMA do, since it resets daily and needs volume data at fine granularity. But it still flags a use for a swing trader: checking where price sits relative to VWAP partway through the day is a quick read on intraday tone, without expanding into a day-trading lesson.",
+  },
+  {
+    id: 'vwap-pullback-example-numbers',
+    prompt: 'What happened during the midday pullback in the intraday example?',
+    choices: [
+      'Price closed well below VWAP for the rest of the session',
+      'At 12:30, price dipped to a low of $50.80 — almost exactly VWAP’s value at that moment ($50.81) — then closed that bar back up at $51.15, and price never closed below VWAP again for the rest of the session',
+      "VWAP dropped below the session's opening price of $50.00",
+      'The pullback happened at the market open, before any rally occurred',
+    ],
+    correctIndex: 1,
+    explanation:
+      "At 12:30, price dipped to a low of $50.80 — almost exactly VWAP's value at that same moment, $50.81 — then closed that bar back up at $51.15. Price tested VWAP and held above it, and never closed below VWAP again for the rest of the session.",
+  },
+  {
+    id: 'vwap-moves-slowly',
+    prompt:
+      "By the session's close, price had rallied to $52.88, but VWAP had only drifted up to about $51.47. Why does VWAP move so much less than price over the same session?",
+    choices: [
+      'Because VWAP is a fixed price level that never changes intraday',
+      'Because VWAP is a cumulative average of the entire session so far, so it moves far more slowly than the price bouncing around it — each new bar is only one data point folded into a growing running average',
+      'Because the example data contains an error',
+      'Because VWAP only updates once per hour instead of every bar',
+    ],
+    correctIndex: 1,
+    explanation:
+      "VWAP is a cumulative, volume-weighted average of the whole session so far, not the current price itself — so it moves far more slowly than the price bouncing around it. Each new 15-minute bar is just one more data point folded into a running average that already reflects everything since the open.",
+  },
+  {
+    id: 'vwap-level-hedge',
+    prompt:
+      'How does the section frame VWAP acting as a level price tests and holds above intraday?',
+    choices: [
+      "As a guaranteed floor — price is not permitted to close below VWAP once it's trading above it",
+      'As a level some traders watch, not a floor price is obligated to respect — the same hedge used for dynamic support and every other level in this module',
+      'As a purely theoretical concept with no real trading relevance',
+      'As something that only applies on days when price closes lower than it opened',
+    ],
+    correctIndex: 1,
+    explanation:
+      "Same hedge as everywhere else in this module: VWAP gets watched as a level intraday — price testing it and holding above, or failing at it — but it's a level some traders watch, not a floor price is obligated to respect.",
+  },
+];
+
 /**
  * Education · Module 7, all 5 of 5 sections: Moving Averages, RSI, MACD, ATR, then VWAP. All five use
  * `ui/education/indicators.ts` (the thin wrapper around `data-providers/internal/indicators.ts`
@@ -335,8 +686,13 @@ const VWAP_INTRADAY_CANDLES: Candle[] = [
  * dollar terms as the candles, so unlike RSI/ATR it shares the price scale instead of needing
  * its own sub-pane.
  *
- * All five indicators now exist. The end-of-module quiz, deferred throughout this module so
- * it could cover all of them at once instead of one quiz per section, can be built next.
+ * Each indicator gets its own 5-question `Quiz` (`ui/education/Quiz.tsx`, unmodified — same
+ * component every prior module used) placed immediately after that indicator's own content,
+ * rather than one combined end-of-module quiz. Every question is grounded in what that
+ * section actually wrote (its specific numbers, examples, and hedges), not generic indicator
+ * trivia, and each covers the section's core caution/nuance at least once: MA's SMA/EMA lag
+ * tradeoff, RSI's bearish divergence, MACD's crossover lagging the actual low, ATR measuring
+ * magnitude not direction, and VWAP resetting each session as primarily an intraday tool.
  */
 export function Module7TechnicalIndicators() {
   const sma20 = calculateSMA(UPTREND_EXAMPLE_CANDLES, 20);
@@ -446,6 +802,8 @@ export function Module7TechnicalIndicators() {
         </p>
       </section>
 
+      <Quiz title="Check your understanding: Moving Averages" questions={MA_QUIZ_QUESTIONS} />
+
       <section>
         <h2>RSI: what it measures</h2>
         <p>
@@ -521,6 +879,8 @@ export function Module7TechnicalIndicators() {
           }}
         />
       </section>
+
+      <Quiz title="Check your understanding: RSI" questions={RSI_QUIZ_QUESTIONS} />
 
       <section>
         <h2>MACD: two moving averages compared</h2>
@@ -610,6 +970,8 @@ export function Module7TechnicalIndicators() {
         />
       </section>
 
+      <Quiz title="Check your understanding: MACD" questions={MACD_QUIZ_QUESTIONS} />
+
       <section>
         <h2>ATR: how big price swings are, not which direction</h2>
         <p>
@@ -674,6 +1036,8 @@ export function Module7TechnicalIndicators() {
           }}
         />
       </section>
+
+      <Quiz title="Check your understanding: ATR" questions={ATR_QUIZ_QUESTIONS} />
 
       <section>
         <h2>VWAP: a running average that resets every session</h2>
@@ -740,6 +1104,8 @@ export function Module7TechnicalIndicators() {
           overlayLines={[{ label: 'VWAP', color: '#ea580c', points: vwap }]}
         />
       </section>
+
+      <Quiz title="Check your understanding: VWAP" questions={VWAP_QUIZ_QUESTIONS} />
     </article>
   );
 }

@@ -40,6 +40,14 @@ const DEFAULT_INDICATOR_PERIOD: Partial<Record<IndicatorRequest['name'], number>
   ATR: 14,
 };
 
+// Half-life (in days) for the daily walk's pull back toward each symbol's base price, in
+// log-price space. Chosen so the pull is negligible across this app's realistic display
+// windows (3-24 months: 1 - 2^(-63/2920) ≈ 1.5%, 1 - 2^(-730/2920) ≈ 16%) while still
+// bounding the walk over the ~56 years of steps accumulated since the epoch anchor
+// (~7 half-lives by now, so it can't drift indefinitely toward the price floor).
+const DAILY_REVERSION_HALF_LIFE_DAYS = 2920;
+const DAILY_REVERSION_RATE = Math.log(2) / DAILY_REVERSION_HALF_LIFE_DAYS;
+
 function alignDown(ms: number, interval: number): number {
   return Math.floor(ms / interval) * interval;
 }
@@ -140,19 +148,26 @@ export class SimulatedMarketDataProvider implements MarketDataProvider {
    * regardless of how large a window the caller asked for. `open` still chains from the prior
    * day's `close`, which is what makes this one continuous series rather than independent
    * per-day values.
+   *
+   * The walk mean-reverts toward `basePrice(symbol)` in log-price space (see
+   * DAILY_REVERSION_RATE) so tens of thousands of accumulated daily steps can't drift a
+   * symbol down to the price floor and get stuck there.
    */
   private generateDailySeries(symbol: string, throughDayIndex: number): Candle[] {
     const volatility = this.volatility(symbol);
     const baseVolume = this.baseVolume(symbol);
+    const basePrice = this.basePrice(symbol);
+    const logBasePrice = Math.log(basePrice);
 
     const candles: Candle[] = [];
-    let prevClose = this.basePrice(symbol);
+    let prevClose = basePrice;
     for (let dayIndex = 0; dayIndex <= throughDayIndex; dayIndex++) {
       const rand = mulberry32(hashString(`${symbol}:day:${dayIndex}`));
       const timestamp = dayIndex * DAY_MS;
       const open = prevClose;
       const drift = 0.0001;
-      const change = open * (drift + gaussian(rand) * volatility);
+      const reversion = DAILY_REVERSION_RATE * (logBasePrice - Math.log(open));
+      const change = open * (drift + reversion + gaussian(rand) * volatility);
       const close = Math.max(0.01, open + change);
       const wick = Math.abs(gaussian(rand)) * volatility * open * 0.5;
       const high = Math.max(open, close) + wick;

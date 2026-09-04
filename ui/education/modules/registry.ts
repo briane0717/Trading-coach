@@ -5,6 +5,7 @@ import { Module3ChartsAndCandlesticks } from './Module3ChartsAndCandlesticks';
 import { Module4TrendAndPriceAction } from './Module4TrendAndPriceAction';
 import { Module5VolumeAndWhatItTellsYou } from './Module5VolumeAndWhatItTellsYou';
 import { Module6SupportAndResistance } from './Module6SupportAndResistance';
+import { Module7TechnicalIndicators } from './Module7TechnicalIndicators';
 
 export interface EducationModule {
   id: string;
@@ -56,5 +57,12 @@ export const educationModules: EducationModule[] = [
     title: 'Support & Resistance',
     path: '/education/module-6',
     component: Module6SupportAndResistance,
+  },
+  {
+    id: 'module-7',
+    order: 7,
+    title: 'Technical Indicators: Moving Averages',
+    path: '/education/module-7',
+    component: Module7TechnicalIndicators,
   },
 ];

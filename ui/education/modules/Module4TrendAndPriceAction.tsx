@@ -3,7 +3,7 @@ import { VideoEmbed } from '../VideoEmbed';
 import { CandlestickChart } from '../CandlestickChart';
 import type { Candle } from '../../../normalized';
 
-const UPTREND_EXAMPLE_CANDLES: Candle[] = [
+export const UPTREND_EXAMPLE_CANDLES: Candle[] = [
   { timestamp: 1784644200000, open: 49.56, high: 52.54, low: 49.07, close: 51.98, volume: 1243601 },
   { timestamp: 1784730600000, open: 52.01, high: 54.3, low: 51.67, close: 53.96, volume: 1219248 },
   { timestamp: 1784817000000, open: 53.78, high: 56.58, low: 53.28, close: 56.02, volume: 1029794 },

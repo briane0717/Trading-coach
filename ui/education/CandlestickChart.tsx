@@ -35,6 +35,7 @@ export function CandlestickChart({
   showVolume,
   priceLines,
   overlayLines,
+  oscillatorPane,
 }: {
   symbol: string;
   timeframe: Timeframe;
@@ -48,6 +49,18 @@ export function CandlestickChart({
     color: string;
     points: { timestamp: number; value: number }[];
   }[];
+  /**
+   * A single indicator line in its own sub-pane with an independent scale, e.g. RSI —
+   * unlike `overlayLines`, these values aren't in price terms so they can't share the
+   * candles' price scale. Renders below the candles (below the volume pane too, if both
+   * are present), the same way `showVolume` gets its own pane.
+   */
+  oscillatorPane?: {
+    label: string;
+    color: string;
+    points: { timestamp: number; value: number }[];
+    referenceLines?: { value: number; label: string; color?: string }[];
+  };
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -132,6 +145,37 @@ export function CandlestickChart({
       return overlaySeries;
     });
 
+    let oscillatorSeries: ISeriesApi<'Line'> | null = null;
+    if (oscillatorPane) {
+      const oscillatorPaneIndex = volumeSeries ? 2 : 1;
+      oscillatorSeries = chart.addSeries(
+        LineSeries,
+        {
+          color: oscillatorPane.color,
+          lineWidth: 2,
+          title: oscillatorPane.label,
+          priceScaleId: 'oscillator',
+        },
+        oscillatorPaneIndex
+      );
+      oscillatorSeries.setData(
+        oscillatorPane.points.map((p) => ({
+          time: Math.floor(p.timestamp / 1000) as import('lightweight-charts').UTCTimestamp,
+          value: p.value,
+        }))
+      );
+      (oscillatorPane.referenceLines ?? []).forEach((rl) => {
+        oscillatorSeries!.createPriceLine({
+          price: rl.value,
+          title: rl.label,
+          color: rl.color ?? '#9ca3af',
+          lineStyle: LineStyle.Dashed,
+          lineWidth: 1,
+        });
+      });
+      chart.panes()[oscillatorPaneIndex]?.setStretchFactor(0.35);
+    }
+
     const handleResize = () => {
       if (containerRef.current) {
         chart.applyOptions({ width: containerRef.current.clientWidth });
@@ -160,6 +204,7 @@ export function CandlestickChart({
         window.removeEventListener('resize', handleResize);
         priceLineHandles.forEach((handle) => series.removePriceLine(handle));
         overlaySeriesHandles.forEach((handle) => chart.removeSeries(handle));
+        if (oscillatorSeries) chart.removeSeries(oscillatorSeries);
         chart.remove();
         chartRef.current = null;
       };
@@ -192,10 +237,11 @@ export function CandlestickChart({
       window.removeEventListener('resize', handleResize);
       priceLineHandles.forEach((handle) => series.removePriceLine(handle));
       overlaySeriesHandles.forEach((handle) => chart.removeSeries(handle));
+      if (oscillatorSeries) chart.removeSeries(oscillatorSeries);
       chart.remove();
       chartRef.current = null;
     };
-  }, [symbol, timeframe, candles, sourceType, showVolume, priceLines, overlayLines]);
+  }, [symbol, timeframe, candles, sourceType, showVolume, priceLines, overlayLines, oscillatorPane]);
 
   return (
     <div className="candlestick-chart">

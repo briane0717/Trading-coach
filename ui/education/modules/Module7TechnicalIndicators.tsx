@@ -450,14 +450,17 @@ export function Module7TechnicalIndicators() {
           <strong>+1.90</strong> by the end of the chart, as the uptrend builds momentum.
         </p>
         <p>
-          Notice the crossover (2026-02-17, price <strong>$53.30</strong>) happens{' '}
-          <em>before</em> price actually bottoms (2026-02-23, price <strong>$51.60</strong>)
-          — price keeps drifting slightly lower for a few more bars even after MACD has
-          already turned up. That's normal, not a bug: MACD reacts to the rate of change in
-          an EMA-smoothed average, which can start improving before the very last low
-          prints. Like every signal in this module, a crossover is evidence to weigh, not a
-          guarantee — MACD can whipsaw back and forth in a choppy market the same way any
-          other indicator can.
+          Notice the crossover (2026-02-17, price <strong>$53.30</strong>) does{' '}
+          <strong>not</strong> line up with the actual low (2026-02-23, price{' '}
+          <strong>$51.60</strong>) — price kept drifting lower for six more bars after MACD
+          had already turned up. That's a real limitation, not a footnote: MACD is built
+          from smoothed averages, so it inherently lags price, and a crossover only confirms
+          a shift in momentum after it's already underway. Treating this crossover as a
+          precise entry point would have meant sitting through roughly{' '}
+          <strong>$1.70</strong> more of downside before the reversal actually took hold.
+          Like every signal in this module, a crossover is evidence a shift may be
+          happening, not a guarantee of the exact turn — and it can whipsaw back and forth
+          in a choppy market the same way any other indicator can.
         </p>
         <CandlestickChart
           symbol="Example: MACD Bullish Crossover"

@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { PositionSizeCalculator } from './PositionSizeCalculator';
 import './TradingPlanWorksheet.css';
 
@@ -9,23 +9,70 @@ export interface TradingPlanWorksheetInitialValues {
   rationale?: string;
 }
 
+interface PersistedFields {
+  entryCondition: string;
+  stopRule: string;
+  targetRule: string;
+  rationale: string;
+}
+
+function loadPersisted(persistKey: string): PersistedFields | undefined {
+  try {
+    const raw = window.localStorage.getItem(persistKey);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return undefined;
+    return {
+      entryCondition: typeof parsed.entryCondition === 'string' ? parsed.entryCondition : '',
+      stopRule: typeof parsed.stopRule === 'string' ? parsed.stopRule : '',
+      targetRule: typeof parsed.targetRule === 'string' ? parsed.targetRule : '',
+      rationale: typeof parsed.rationale === 'string' ? parsed.rationale : '',
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+function savePersisted(persistKey: string, fields: PersistedFields): void {
+  try {
+    window.localStorage.setItem(persistKey, JSON.stringify(fields));
+  } catch {
+    // Storage unavailable (private browsing, quota, disabled) — fall back to in-memory only.
+  }
+}
+
 /**
  * Fill-in-the-blank worksheet for Module 10 — every field is free text the user writes about
  * their own plan. There is no symbol field and nothing here is checked against market data;
- * position sizing is delegated entirely to PositionSizeCalculator (embedded, not reimplemented)
- * so this stays inside CLAUDE.md's phase boundary. Output is the user's own words reflected
- * back as a saved plan, not advice or an evaluation of one.
+ * position sizing is delegated entirely to PositionSizeCalculator (embedded, not reimplemented,
+ * and never persisted here) so this stays inside CLAUDE.md's phase boundary. Output is the
+ * user's own words reflected back as a saved plan, not advice or an evaluation of one.
+ *
+ * `persistKey` is opt-in: when provided, the four text fields (only) load from and save to
+ * localStorage under that key as a single JSON object. Omit it for pure in-memory behavior.
  */
 export function TradingPlanWorksheet({
   initialValues,
+  persistKey,
 }: {
   initialValues?: TradingPlanWorksheetInitialValues;
+  persistKey?: string;
 }) {
   const id = useId();
-  const [entryCondition, setEntryCondition] = useState(initialValues?.entryCondition ?? '');
-  const [stopRule, setStopRule] = useState(initialValues?.stopRule ?? '');
-  const [targetRule, setTargetRule] = useState(initialValues?.targetRule ?? '');
-  const [rationale, setRationale] = useState(initialValues?.rationale ?? '');
+  const [persisted] = useState(() => (persistKey ? loadPersisted(persistKey) : undefined));
+  const [entryCondition, setEntryCondition] = useState(
+    persisted?.entryCondition ?? initialValues?.entryCondition ?? ''
+  );
+  const [stopRule, setStopRule] = useState(persisted?.stopRule ?? initialValues?.stopRule ?? '');
+  const [targetRule, setTargetRule] = useState(
+    persisted?.targetRule ?? initialValues?.targetRule ?? ''
+  );
+  const [rationale, setRationale] = useState(persisted?.rationale ?? initialValues?.rationale ?? '');
+
+  useEffect(() => {
+    if (!persistKey) return;
+    savePersisted(persistKey, { entryCondition, stopRule, targetRule, rationale });
+  }, [persistKey, entryCondition, stopRule, targetRule, rationale]);
 
   return (
     <div className="tpw">

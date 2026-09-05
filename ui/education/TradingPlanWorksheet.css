@@ -1,0 +1,48 @@
+.tpw {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem 1.25rem 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.tpw-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 1.25rem;
+}
+
+.tpw-section:last-child {
+  margin-bottom: 0;
+}
+
+.tpw-section label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.tpw-section textarea {
+  font: inherit;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  resize: vertical;
+  min-height: 4.5rem;
+}
+
+.tpw-section textarea:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+  border-color: #2563eb;
+}
+
+.tpw-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.tpw-position-size {
+  padding-top: 0.25rem;
+}

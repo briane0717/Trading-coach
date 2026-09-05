@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { educationModules } from './education/modules/registry';
 import { EducationHome } from './education/EducationHome';
-import { TradingPlanWorksheetVerification } from './dev/TradingPlanWorksheetVerification';
 import './education/module.css';
 
 export function App() {
@@ -13,11 +12,6 @@ export function App() {
         {educationModules.map((m) => (
           <Route key={m.id} path={m.path} element={<m.component />} />
         ))}
-        {/* Throwaway verification route — see ui/dev/TradingPlanWorksheetVerification.tsx. */}
-        <Route
-          path="/dev/trading-plan-worksheet-verification"
-          element={<TradingPlanWorksheetVerification />}
-        />
       </Routes>
     </BrowserRouter>
   );

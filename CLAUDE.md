@@ -33,9 +33,14 @@ If a task seems to require it, stop and flag it instead of building a placeholde
 - See ARCHITECTURE.md for the full layer breakdown and current provider status.
 
 ## Current status
-- Phase: 1 (Education) — simulated market data adapter built.
-- Market data provider: simulated adapter only — real vendor pending research (see
-  ARCHITECTURE.md open items).
+- Phase 1 (Education + paper trading): feature-complete and confirmed working — education
+  modules, the paper-trading engine, and the order-entry/portfolio UI all run on
+  `SimulatedMarketDataProvider`.
+- Phase 2 (real market data): vendor research is done — Alpaca Market Data (free tier),
+  chosen for genuine bid/ask via its IEX feed (see the adapter's code comments for the
+  CORS/proxy rationale). `AlpacaMarketDataProvider` is built and tested, but it is not wired
+  into the UI — the app still runs entirely on `SimulatedMarketDataProvider`. See
+  ARCHITECTURE.md's "Current provider status" for details.
 - Brokerage integration: not started, not authorized.
 
 ## Working style

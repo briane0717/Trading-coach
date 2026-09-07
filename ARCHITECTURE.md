@@ -75,10 +75,13 @@ Current (equities-only, what actually exists today):
 /data-providers/          one file per vendor (simulated, and later real providers)
 /data-providers/interface.ts   the MarketDataProvider contract every adapter implements
 /normalized/               shared types: Quote, Candle, Indicator, etc.
+/trading-engine/            in-memory paper-trading engine — orders, positions, P&L, buying
+                             power — plus localStorage persistence; no market-data or UI imports
 /services/                  indicator calc, readiness scoring, journal, risk-sizing
 /coach/                     AI coach prompts/logic — interpretation layer, clearly separated
                              from raw-data display
 /ui/                        charts, dashboards, education content
+/ui/trading/                 paper-trading UI: order-entry form, portfolio dashboard
 /brokerage/                 EMPTY until Phase 5 is explicitly authorized — do not scaffold yet
 ```
 
@@ -117,6 +120,11 @@ tracks are not scheduled.
 1. **Simulated data adapter** — generates plausible OHLC/quote data so every other layer can
    be built and tested without any vendor account or API key. ✅ Built — see
    `/data-providers/simulated.ts`.
+
+   Also built, not originally called out as its own numbered step: the in-memory
+   **paper-trading engine** (`/trading-engine/`) and its **order-entry/portfolio UI**
+   (`/ui/trading/`) — account state, market-order execution, buying-power and shares-held
+   checks, and localStorage persistence, all running on the simulated adapter above. ✅ Built.
 2. **Education module** — content + simulator using the simulated adapter.
 3. **Indicator services** — moving averages, RSI, MACD, ATR, VWAP, support/resistance, computed
    from OHLC (works identically on simulated or real data since it's downstream of the adapter).
@@ -125,17 +133,31 @@ tracks are not scheduled.
    a setup, explicitly separates fact vs. interpretation, never issues directives.
 6. **Trading Readiness system** — risk-management tests, position-sizing tests, chart-analysis
    tests, drawdown/consistency tracking. Gates progression on demonstrated skill, not P&L.
-7. **Real data adapter research (open item)** — evaluate vendors (e.g. IEX Cloud successors,
-   Polygon.io, Alpaca Market Data, Finnhub, Twelve Data) on: real-time vs. delayed tiers,
-   pricing, rate limits, and licensing terms for display in a third-party app. This needs a
-   dedicated research pass when you're ready for Phase 2 — pricing/licensing terms move fast
-   enough that it shouldn't be answered from memory.
+7. **Real data adapter research** — ✅ Resolved: Alpaca Market Data (free tier) selected,
+   chosen for genuine bid/ask via its IEX feed — see `data-providers/alpaca.ts`'s class-level
+   comment for the rationale. `AlpacaMarketDataProvider` implements `MarketDataProvider` and is
+   tested (`data-providers/alpaca.test.ts`), but it is not yet wired into any
+   provider-selection logic or the UI — see "Current provider status" below.
 8. **Brokerage research (Phase 5, later, separate authorization)** — not started.
 
 ## Open items to research before Phase 2
+**Resolved — see item 7 above:** Alpaca Market Data (free tier) was selected and
+`AlpacaMarketDataProvider` is built. The criteria that were being researched:
 - Which market-data vendor's licensing terms actually permit display in a consumer-facing app
   (some prohibit redistribution/display outside their own UI at lower pricing tiers).
 - Real-time vs. 15-min-delayed cost tiers for each candidate vendor.
+
+## Dev-only Alpaca proxy (narrow exception, not a backend)
+`vite-plugins/alpacaProxy.ts` is a same-origin Vite dev-server relay: it attaches Alpaca API
+keys (read from `process.env`, never bundled into client code) and forwards requests to
+`data.alpaca.markets`. It exists solely because Alpaca's Market Data API doesn't support
+direct browser calls (no CORS) and because its keys must never reach client code — not because
+this app has, or is growing, a general backend. It's a stateless credential relay, single-
+purpose and hardcoded to one vendor's one API, not a proxy for arbitrary requests.
+
+It only runs under `npm run dev`. A deployed build has no equivalent yet — shipping
+`AlpacaMarketDataProvider` to production needs an equivalent server-side proxy (e.g. a
+serverless function) built first; that isn't done.
 
 ## Current provider status
 - `data-providers/interface.ts` — the `MarketDataProvider` contract (Phase 1, complete).
@@ -143,7 +165,15 @@ tracks are not scheduled.
   if/when a second asset class is authorized (see "Tracks: asset class × style" above).
 - `data-providers/simulated.ts` — `SimulatedMarketDataProvider`, a deterministic
   pseudo-random OHLC/quote generator for equities. Every response is tagged
-  `sourceType: 'simulated'`. This is the only registered provider; no vendor SDK is wired in
-  yet (Phase 2 open item).
+  `sourceType: 'simulated'`. Still the only provider actually wired into the UI (see
+  `ui/trading/OrderForm.tsx`) — `AlpacaMarketDataProvider` below exists but isn't selected
+  anywhere yet.
+- `data-providers/alpaca.ts` — `AlpacaMarketDataProvider`, implements `MarketDataProvider`
+  against Alpaca Market Data's IEX feed. Calls only the dev-only proxy above — never
+  `data.alpaca.markets` directly — so vendor credentials never reach client code. `sourceType`
+  per method: `getQuote` → `real-time`; `getHistorical`, `getIndicators`, and
+  `getIntraday('1d')` → `historical`; sub-day `getIntraday` (1m/5m/15m/1h) → `real-time`.
+  Tested in `data-providers/alpaca.test.ts` (fetch mocked, no network). Not registered or
+  selected anywhere yet — wiring up provider selection in the UI is a separate, later step.
 - No options, forex, or other asset-class provider exists, and none should be built until
   that track is explicitly authorized.

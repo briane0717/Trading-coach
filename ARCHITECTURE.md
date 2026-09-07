@@ -136,8 +136,8 @@ tracks are not scheduled.
 7. **Step 7: Real data adapter research** — ✅ Resolved: Alpaca Market Data (free tier) selected,
    chosen for genuine bid/ask via its IEX feed — see `data-providers/alpaca.ts`'s class-level
    comment for the rationale. `AlpacaMarketDataProvider` implements `MarketDataProvider` and is
-   tested (`data-providers/alpaca.test.ts`), but it is not yet wired into any
-   provider-selection logic or the UI — see "Current provider status" below.
+   tested (`data-providers/alpaca.test.ts`), and is now selectable in `OrderForm` as an explicit
+   opt-in via `VITE_MARKET_DATA_PROVIDER=alpaca` — see "Current provider status" below.
 8. **Step 8: Brokerage research (CLAUDE.md Phase 6, later, separate authorization)** — not started.
 
 ## Open items to research before Phase 3
@@ -165,15 +165,20 @@ serverless function) built first; that isn't done.
   if/when a second asset class is authorized (see "Tracks: asset class × style" above).
 - `data-providers/simulated.ts` — `SimulatedMarketDataProvider`, a deterministic
   pseudo-random OHLC/quote generator for equities. Every response is tagged
-  `sourceType: 'simulated'`. Still the only provider actually wired into the UI (see
-  `ui/trading/OrderForm.tsx`) — `AlpacaMarketDataProvider` below exists but isn't selected
-  anywhere yet.
+  `sourceType: 'simulated'`. Still the default provider in the UI (see
+  `ui/trading/OrderForm.tsx`'s `selectMarketDataProvider`) — used whenever
+  `VITE_MARKET_DATA_PROVIDER` is unset, missing, or unrecognized, per CLAUDE.md's rule that
+  ambiguity must never default to real data.
 - `data-providers/alpaca.ts` — `AlpacaMarketDataProvider`, implements `MarketDataProvider`
   against Alpaca Market Data's IEX feed. Calls only the dev-only proxy above — never
   `data.alpaca.markets` directly — so vendor credentials never reach client code. `sourceType`
   per method: `getQuote` → `real-time`; `getHistorical`, `getIndicators`, and
   `getIntraday('1d')` → `historical`; sub-day `getIntraday` (1m/5m/15m/1h) → `real-time`.
-  Tested in `data-providers/alpaca.test.ts` (fetch mocked, no network). Not registered or
-  selected anywhere yet — wiring up provider selection in the UI is a separate, later step.
+  Tested in `data-providers/alpaca.test.ts` (fetch mocked, no network). Selectable in
+  `OrderForm` as an explicit opt-in via `VITE_MARKET_DATA_PROVIDER=alpaca` (see
+  `.env.example`); only functional under `npm run dev` since the Alpaca proxy is dev-only.
+  `ui/trading/PaperTradingDashboard.tsx` now imports `OrderForm`'s `selectMarketDataProvider`
+  and honors the same env var, so the dashboard and the order form can't disagree about which
+  provider is active.
 - No options, forex, or other asset-class provider exists, and none should be built until
   that track is explicitly authorized.

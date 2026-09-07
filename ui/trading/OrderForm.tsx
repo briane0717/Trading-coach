@@ -1,11 +1,22 @@
 import { useId, useState } from 'react';
-import { SimulatedMarketDataProvider } from '../../data-providers';
+import { AlpacaMarketDataProvider, SimulatedMarketDataProvider } from '../../data-providers';
+import type { MarketDataProvider } from '../../data-providers';
 import type { SourceType, WithMeta, Quote } from '../../normalized';
 import { getBuyingPower } from '../../trading-engine';
 import type { Account, Order, OrderResult, OrderSide } from '../../trading-engine';
 import './OrderForm.css';
 
-const provider = new SimulatedMarketDataProvider();
+/**
+ * Picks the live provider from VITE_MARKET_DATA_PROVIDER ('simulated' | 'alpaca'). Any unset,
+ * missing, or unrecognized value falls back to simulated — per CLAUDE.md, ambiguity must never
+ * default to real data. Exported so tests can exercise the selection directly, since the
+ * module-level `provider` singleton below is otherwise only resolved once, at import time.
+ */
+export function selectMarketDataProvider(raw: string | undefined): MarketDataProvider {
+  return raw === 'alpaca' ? new AlpacaMarketDataProvider() : new SimulatedMarketDataProvider();
+}
+
+const provider = selectMarketDataProvider(import.meta.env.VITE_MARKET_DATA_PROVIDER);
 
 const SOURCE_LABEL: Record<SourceType, string> = {
   'real-time': 'Real-time',

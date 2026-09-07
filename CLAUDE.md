@@ -43,8 +43,11 @@ If a task seems to require it, stop and flag it instead of building a placeholde
   and the order-entry/portfolio UI all run on `SimulatedMarketDataProvider`.
 - Phase 3 (real market data): vendor research is done — Alpaca Market Data (free tier),
   chosen for genuine bid/ask via its IEX feed (see the adapter's code comments for the
-  CORS/proxy rationale). `AlpacaMarketDataProvider` is built and tested, but it is not wired
-  into the UI — the app still runs entirely on `SimulatedMarketDataProvider`. See
+  CORS/proxy rationale). `AlpacaMarketDataProvider` is built and tested, and is now
+  selectable in `OrderForm` as an explicit opt-in via `VITE_MARKET_DATA_PROVIDER=alpaca`
+  (default remains `simulated`; only functional under `npm run dev`). `PaperTradingDashboard`
+  now uses the same `selectMarketDataProvider` helper as `OrderForm`, so both screens honor
+  `VITE_MARKET_DATA_PROVIDER` and can't disagree about which provider is active. See
   ARCHITECTURE.md's "Current provider status" for details.
 - Brokerage integration: not started, not authorized.
 

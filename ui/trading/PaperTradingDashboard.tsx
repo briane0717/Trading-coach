@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { SimulatedMarketDataProvider } from '../../data-providers';
 import type { SourceType, WithMeta, Quote } from '../../normalized';
 import { getBuyingPower, getEquity, getUnrealizedPnL } from '../../trading-engine';
 import { usePaperAccount } from './usePaperAccount';
-import { OrderForm } from './OrderForm';
+import { OrderForm, selectMarketDataProvider } from './OrderForm';
 import './PaperTradingDashboard.css';
 
-const provider = new SimulatedMarketDataProvider();
+const provider = selectMarketDataProvider(import.meta.env.VITE_MARKET_DATA_PROVIDER);
 
 const SOURCE_LABEL: Record<SourceType, string> = {
   'real-time': 'Real-time',
@@ -26,10 +25,12 @@ const fmtMoney = (n: number) => n.toLocaleString('en-US', { style: 'currency', c
  * this browser (CLAUDE.md's non-negotiable rule).
  *
  * Equity and each position's unrealized P/L need a *current* price per held symbol, which this
- * component fetches itself (SimulatedMarketDataProvider.getQuote per symbol) — the engine never
- * fetches quotes on its own (see engine.ts). While those quotes are loading, equity is shown as
- * cash-only (an understatement for an account with open positions) with a note, rather than
- * blocking the page or guessing; getEquity() would throw if called with a partial price map.
+ * component fetches itself (provider.getQuote per symbol) — the engine never fetches quotes on
+ * its own (see engine.ts). The active provider is selected via VITE_MARKET_DATA_PROVIDER, same
+ * as OrderForm (see selectMarketDataProvider), so the two screens can't disagree about which
+ * provider is in use. While those quotes are loading, equity is shown as cash-only (an
+ * understatement for an account with open positions) with a note, rather than blocking the page
+ * or guessing; getEquity() would throw if called with a partial price map.
  */
 export function PaperTradingDashboard() {
   const { account, submitOrder, lastSaveFailed } = usePaperAccount();

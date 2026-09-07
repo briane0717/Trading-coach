@@ -1,18 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { OrderForm } from './OrderForm';
+import { OrderForm, selectMarketDataProvider } from './OrderForm';
+import { AlpacaMarketDataProvider, SimulatedMarketDataProvider } from '../../data-providers';
 import { createAccount } from '../../trading-engine';
 import type { Account, Order, OrderResult, Trade } from '../../trading-engine';
 import type { Quote, SourceType, WithMeta } from '../../normalized';
 
 // OrderForm imports a module-level `new SimulatedMarketDataProvider()` singleton directly
 // rather than accepting one as a prop, so tests replace the module to control what getQuote
-// resolves to instead of depending on the simulator's real (seeded-random) prices.
-const { mockGetQuote } = vi.hoisted(() => ({ mockGetQuote: vi.fn() }));
+// resolves to instead of depending on the simulator's real (seeded-random) prices. Both
+// provider classes are mocked (not just Simulated) so selectMarketDataProvider's choice
+// between them can be asserted without hitting the real Alpaca network path.
+const { mockGetQuote, mockAlpacaGetQuote } = vi.hoisted(() => ({
+  mockGetQuote: vi.fn(),
+  mockAlpacaGetQuote: vi.fn(),
+}));
 
 vi.mock('../../data-providers', () => ({
   SimulatedMarketDataProvider: vi.fn().mockImplementation(() => ({ getQuote: mockGetQuote })),
+  AlpacaMarketDataProvider: vi.fn().mockImplementation(() => ({ getQuote: mockAlpacaGetQuote })),
 }));
 
 function makeQuote(symbol: string, overrides: Partial<WithMeta<Quote>> = {}): WithMeta<Quote> {
@@ -38,6 +45,8 @@ function makeQuote(symbol: string, overrides: Partial<WithMeta<Quote>> = {}): Wi
 beforeEach(() => {
   mockGetQuote.mockReset();
   mockGetQuote.mockImplementation(async (symbol: string) => makeQuote(symbol));
+  vi.mocked(SimulatedMarketDataProvider).mockClear();
+  vi.mocked(AlpacaMarketDataProvider).mockClear();
 });
 
 function renderOrderForm(
@@ -307,5 +316,71 @@ describe('OrderForm quote failure', () => {
 
     expect(await screen.findByText(/Couldn't fetch a quote: symbol not found/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Review order' })).toBeDisabled();
+  });
+});
+
+describe('selectMarketDataProvider (VITE_MARKET_DATA_PROVIDER)', () => {
+  it('defaults to SimulatedMarketDataProvider when the value is undefined', () => {
+    selectMarketDataProvider(undefined);
+    expect(SimulatedMarketDataProvider).toHaveBeenCalledTimes(1);
+    expect(AlpacaMarketDataProvider).not.toHaveBeenCalled();
+  });
+
+  it('falls back to SimulatedMarketDataProvider for an unrecognized value', () => {
+    selectMarketDataProvider('bogus');
+    expect(SimulatedMarketDataProvider).toHaveBeenCalledTimes(1);
+    expect(AlpacaMarketDataProvider).not.toHaveBeenCalled();
+  });
+
+  it('selects AlpacaMarketDataProvider only for the exact value "alpaca"', () => {
+    selectMarketDataProvider('alpaca');
+    expect(AlpacaMarketDataProvider).toHaveBeenCalledTimes(1);
+    expect(SimulatedMarketDataProvider).not.toHaveBeenCalled();
+  });
+
+  it('is case-sensitive — "Alpaca" is not recognized and falls back to simulated', () => {
+    selectMarketDataProvider('Alpaca');
+    expect(SimulatedMarketDataProvider).toHaveBeenCalledTimes(1);
+    expect(AlpacaMarketDataProvider).not.toHaveBeenCalled();
+  });
+});
+
+describe('OrderForm sourceType badge', () => {
+  it.each([
+    ['real-time', 'Real-time data'],
+    ['delayed', 'Delayed data'],
+    ['historical', 'Historical data'],
+    ['simulated', 'Simulated data'],
+  ] satisfies [SourceType, string][])(
+    'renders "%s" as "%s", read live from the quote response',
+    async (sourceType, expectedLabel) => {
+      const user = userEvent.setup();
+      mockGetQuote.mockImplementation(async (symbol: string) => makeQuote(symbol, { sourceType }));
+      renderOrderForm();
+
+      await fetchQuote(user, 'AAPL');
+
+      expect(screen.getByText(expectedLabel)).toBeInTheDocument();
+    }
+  );
+
+  it('updates the badge when a new quote for a different symbol reports a different sourceType', async () => {
+    const user = userEvent.setup();
+    mockGetQuote.mockImplementationOnce(async (symbol: string) =>
+      makeQuote(symbol, { sourceType: 'simulated' })
+    );
+    renderOrderForm();
+
+    await fetchQuote(user, 'AAPL');
+    expect(screen.getByText('Simulated data')).toBeInTheDocument();
+
+    mockGetQuote.mockImplementationOnce(async (symbol: string) =>
+      makeQuote(symbol, { sourceType: 'real-time' })
+    );
+    await user.clear(screen.getByLabelText('Symbol'));
+    await fetchQuote(user, 'MSFT');
+
+    expect(screen.getByText('Real-time data')).toBeInTheDocument();
+    expect(screen.queryByText('Simulated data')).not.toBeInTheDocument();
   });
 });

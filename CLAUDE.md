@@ -55,3 +55,14 @@ If a task seems to require it, stop and flag it instead of building a placeholde
 - Build one vertical slice at a time; don't scaffold future-phase code "just in case."
 - When something breaks, stop and troubleshoot before adding new code on top of it.
 - Flag when a request would blur a phase boundary rather than quietly complying.
+
+## Usage discipline
+- Don't independently re-verify a completed report by default. Spot-check only when something
+  looks inconsistent (numbers don't add up, a claim contradicts an earlier one, "done" isn't
+  backed by a diff).
+- A "pushed" claim gets one cheap `git fetch` + `git log origin/...` check — not a full
+  rebuild-and-retest cycle.
+- Run bare `npm test` only, not the simulated/alpaca/bare three-way matrix, unless the change
+  actually touches provider-selection code.
+- Collapse build + verify + commit into one round trip; don't add an extra review pass by default.
+- Keep reports tight: outcome and what changed, not full blow-by-blow narration.

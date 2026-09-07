@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CandlestickChart } from '../education/CandlestickChart';
-import type { SourceType, WithMeta, Quote } from '../../normalized';
+import type { IndicatorRequest, IndicatorResult, SourceType, WithMeta, Quote } from '../../normalized';
 import { getBuyingPower, getEquity, getUnrealizedPnL } from '../../trading-engine';
 import { usePaperAccount } from './usePaperAccount';
 import { OrderForm, selectMarketDataProvider } from './OrderForm';
@@ -15,6 +15,18 @@ const SOURCE_LABEL: Record<SourceType, string> = {
   historical: 'Historical',
   simulated: 'Simulated',
 };
+
+type BottomPane = 'None' | 'RSI' | 'ATR' | 'MACD';
+
+// Fixed defaults for this round — no period-customization UI yet (see ARCHITECTURE.md Step 4).
+const SMA_PERIOD = 20;
+const EMA_PERIOD = 20;
+const RSI_PERIOD = 14;
+const ATR_PERIOD = 14;
+
+function asNumber(value: number | Record<string, number>): number {
+  return value as number;
+}
 
 const fmtMoney = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
@@ -39,6 +51,13 @@ export function PaperTradingDashboard() {
   const [quotesLoading, setQuotesLoading] = useState(false);
   const [quotesError, setQuotesError] = useState<string | null>(null);
   const [activeSymbol, setActiveSymbol] = useState<string>('');
+
+  const [showSMA, setShowSMA] = useState(false);
+  const [showEMA, setShowEMA] = useState(false);
+  const [showVWAP, setShowVWAP] = useState(false);
+  const [bottomPane, setBottomPane] = useState<BottomPane>('None');
+  const [indicators, setIndicators] = useState<IndicatorResult[]>([]);
+  const [indicatorsError, setIndicatorsError] = useState<string | null>(null);
 
   useEffect(() => {
     const symbols = Object.keys(account.positions);
@@ -93,6 +112,113 @@ export function PaperTradingDashboard() {
           0
         )
       : undefined;
+
+  useEffect(() => {
+    const list: IndicatorRequest[] = [];
+    if (showSMA) list.push({ name: 'SMA', period: SMA_PERIOD });
+    if (showEMA) list.push({ name: 'EMA', period: EMA_PERIOD });
+    if (showVWAP) list.push({ name: 'VWAP' });
+    if (bottomPane === 'RSI') list.push({ name: 'RSI', period: RSI_PERIOD });
+    if (bottomPane === 'ATR') list.push({ name: 'ATR', period: ATR_PERIOD });
+    if (bottomPane === 'MACD') list.push({ name: 'MACD' });
+
+    if (activeSymbol === '' || list.length === 0) {
+      setIndicators([]);
+      setIndicatorsError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIndicatorsError(null);
+    provider
+      .getIndicators(activeSymbol, list)
+      .then((result) => {
+        if (!cancelled) setIndicators(result.indicators);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setIndicatorsError(err instanceof Error ? err.message : String(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSymbol, showSMA, showEMA, showVWAP, bottomPane]);
+
+  const overlayLines = useMemo(() => {
+    const lines: { label: string; color: string; points: { timestamp: number; value: number }[] }[] = [];
+    const smaResult = indicators.find((r) => r.name === 'SMA');
+    if (smaResult) {
+      lines.push({
+        label: `SMA(${smaResult.period})`,
+        color: '#2563eb',
+        points: smaResult.points.map((p) => ({ timestamp: p.timestamp, value: asNumber(p.value) })),
+      });
+    }
+    const emaResult = indicators.find((r) => r.name === 'EMA');
+    if (emaResult) {
+      lines.push({
+        label: `EMA(${emaResult.period})`,
+        color: '#f97316',
+        points: emaResult.points.map((p) => ({ timestamp: p.timestamp, value: asNumber(p.value) })),
+      });
+    }
+    const vwapResult = indicators.find((r) => r.name === 'VWAP');
+    if (vwapResult) {
+      lines.push({
+        label: 'VWAP',
+        color: '#7c3aed',
+        points: vwapResult.points.map((p) => ({ timestamp: p.timestamp, value: asNumber(p.value) })),
+      });
+    }
+    return lines;
+  }, [indicators]);
+
+  const oscillatorPane = useMemo(() => {
+    if (bottomPane === 'RSI') {
+      const result = indicators.find((r) => r.name === 'RSI');
+      if (!result) return undefined;
+      return {
+        label: `RSI(${result.period})`,
+        color: '#0891b2',
+        points: result.points.map((p) => ({ timestamp: p.timestamp, value: asNumber(p.value) })),
+        referenceLines: [
+          { value: 70, label: '70', color: '#9ca3af' },
+          { value: 30, label: '30', color: '#9ca3af' },
+        ],
+      };
+    }
+    if (bottomPane === 'ATR') {
+      const result = indicators.find((r) => r.name === 'ATR');
+      if (!result) return undefined;
+      return {
+        label: `ATR(${result.period})`,
+        color: '#65a30d',
+        points: result.points.map((p) => ({ timestamp: p.timestamp, value: asNumber(p.value) })),
+      };
+    }
+    return undefined;
+  }, [indicators, bottomPane]);
+
+  const macdPane = useMemo(() => {
+    if (bottomPane !== 'MACD') return undefined;
+    const result = indicators.find((r) => r.name === 'MACD');
+    if (!result) return undefined;
+    const asRecord = (value: number | Record<string, number>) => value as Record<string, number>;
+    return {
+      macdLine: {
+        label: 'MACD',
+        color: '#2563eb',
+        points: result.points.map((p) => ({ timestamp: p.timestamp, value: asRecord(p.value).macd })),
+      },
+      signalLine: {
+        label: 'Signal',
+        color: '#f97316',
+        points: result.points.map((p) => ({ timestamp: p.timestamp, value: asRecord(p.value).signal })),
+      },
+      histogram: {
+        points: result.points.map((p) => ({ timestamp: p.timestamp, value: asRecord(p.value).histogram })),
+      },
+    };
+  }, [indicators, bottomPane]);
 
   const recentTrades = [...account.tradeHistory].reverse();
 
@@ -149,7 +275,59 @@ export function PaperTradingDashboard() {
             Get a quote or hold a position to see its chart here.
           </p>
         ) : (
-          <CandlestickChart symbol={activeSymbol} timeframe="1d" provider={provider} />
+          <>
+            <div className="paper-trading-indicator-controls">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showSMA}
+                  onChange={(e) => setShowSMA(e.target.checked)}
+                />
+                SMA ({SMA_PERIOD})
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showEMA}
+                  onChange={(e) => setShowEMA(e.target.checked)}
+                />
+                EMA ({EMA_PERIOD})
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showVWAP}
+                  onChange={(e) => setShowVWAP(e.target.checked)}
+                />
+                VWAP
+              </label>
+              <label className="paper-trading-bottom-pane-select">
+                Bottom pane
+                <select
+                  value={bottomPane}
+                  onChange={(e) => setBottomPane(e.target.value as BottomPane)}
+                >
+                  <option value="None">None</option>
+                  <option value="RSI">RSI ({RSI_PERIOD})</option>
+                  <option value="ATR">ATR ({ATR_PERIOD})</option>
+                  <option value="MACD">MACD</option>
+                </select>
+              </label>
+            </div>
+            {indicatorsError && (
+              <p className="paper-trading-warning">
+                Couldn't load indicators: {indicatorsError}
+              </p>
+            )}
+            <CandlestickChart
+              symbol={activeSymbol}
+              timeframe="1d"
+              provider={provider}
+              overlayLines={overlayLines.length > 0 ? overlayLines : undefined}
+              oscillatorPane={oscillatorPane}
+              macdPane={macdPane}
+            />
+          </>
         )}
       </section>
 

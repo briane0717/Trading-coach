@@ -168,3 +168,24 @@
   top: 0;
   background: #fff;
 }
+
+.paper-trading-indicator-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+  font-size: 0.85rem;
+  color: #374151;
+  margin: 0 0 0.75rem;
+}
+
+.paper-trading-indicator-controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.paper-trading-bottom-pane-select select {
+  font-size: 0.85rem;
+  padding: 0.15rem 0.3rem;
+}

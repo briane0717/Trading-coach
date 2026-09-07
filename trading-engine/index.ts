@@ -8,3 +8,10 @@ export type {
   Trade,
 } from './types';
 export { createAccount, executeOrder, getBuyingPower, getUnrealizedPnL, getEquity } from './engine';
+export type { AccountStorage } from './persistence';
+export {
+  DEFAULT_ACCOUNT_STORAGE_KEY,
+  clearAccount,
+  loadAccount,
+  saveAccount,
+} from './persistence';

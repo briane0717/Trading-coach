@@ -2,7 +2,7 @@
 // MarketDataProvider#getIndicators contract on its own generated OHLC data.
 //
 // This is intentionally self-contained rather than a shared /services/ indicator layer —
-// that dedicated layer is Phase 3 (see ARCHITECTURE.md build order) and works identically
+// that dedicated layer is Step 3 (see ARCHITECTURE.md build order) and works identically
 // on simulated or real data since it only depends on this same Candle shape.
 
 import type { Candle, IndicatorPoint } from '../../normalized';

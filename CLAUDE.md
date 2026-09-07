@@ -6,16 +6,21 @@ application. Built in strict phases. Do not skip ahead.
 
 ## Phase order (hard boundary — do not blur these)
 1. **Education** — trading fundamentals, historical/simulated data only.
-2. **Real market analysis** — real-time/delayed data display only. No trade execution.
-3. **Advanced analysis / AI coach** — helps interpret setups, never issues buy/sell commands.
-4. **Trading Readiness system** — gates progression via tested skill, not P&L.
-5. **Brokerage integration (optional, future, separate dev phase)** — not started until 1-4 are solid.
+2. **Paper trading** — the in-memory paper-trading engine (`/trading-engine/` —
+   `createAccount`, `executeOrder`, `getBuyingPower`, `getUnrealizedPnL`, `getEquity`, plus a
+   localStorage persistence adapter) and the order-entry/portfolio UI (`/ui/trading/` —
+   `usePaperAccount`, `PaperTradingDashboard`, `OrderForm`, routed at `/trading`), running
+   entirely on `SimulatedMarketDataProvider`. Complete and confirmed working.
+3. **Real market analysis** — real-time/delayed data display only. No trade execution.
+4. **Advanced analysis / AI coach** — helps interpret setups, never issues buy/sell commands.
+5. **Trading Readiness system** — gates progression via tested skill, not P&L.
+6. **Brokerage integration (optional, future, separate dev phase)** — not started until 1-5 are solid.
 
-Do not build brokerage connectivity, order placement, or credential storage in phases 1-4.
+Do not build brokerage connectivity, order placement, or credential storage in phases 1-5.
 If a task seems to require it, stop and flag it instead of building a placeholder for it.
 
 ## Non-negotiable safety rules
-- No real brokerage connection until explicitly instructed to start Phase 5.
+- No real brokerage connection until explicitly instructed to start Phase 6.
 - No automatic trade execution, ever — even after brokerage integration exists.
 - Never store brokerage credentials in plaintext, in code, or in the repo. Use environment
   variables / a secrets manager, and flag any deviation.
@@ -33,10 +38,10 @@ If a task seems to require it, stop and flag it instead of building a placeholde
 - See ARCHITECTURE.md for the full layer breakdown and current provider status.
 
 ## Current status
-- Phase 1 (Education + paper trading): feature-complete and confirmed working — education
-  modules, the paper-trading engine, and the order-entry/portfolio UI all run on
-  `SimulatedMarketDataProvider`.
-- Phase 2 (real market data): vendor research is done — Alpaca Market Data (free tier),
+- Phase 1 (Education): feature-complete and confirmed working.
+- Phase 2 (Paper trading): feature-complete and confirmed working — the paper-trading engine
+  and the order-entry/portfolio UI all run on `SimulatedMarketDataProvider`.
+- Phase 3 (real market data): vendor research is done — Alpaca Market Data (free tier),
   chosen for genuine bid/ask via its IEX feed (see the adapter's code comments for the
   CORS/proxy rationale). `AlpacaMarketDataProvider` is built and tested, but it is not wired
   into the UI — the app still runs entirely on `SimulatedMarketDataProvider`. See

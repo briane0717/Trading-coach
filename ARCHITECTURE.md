@@ -36,7 +36,7 @@ hardcoded to one instrument type. None of that restructuring happens until a sec
 actually authorized — see "Current build scope."
 
 ## Current build scope
-**Equities + swing trading is the first complete path being built, through Phase 4.** No other
+**Equities + swing trading is the first complete path being built, through Phase 5.** No other
 asset class, no other style, and no non-equities/non-swing-trading content should be built
 until explicitly instructed — this file documents the target architecture, not a build queue
 for the other tracks.
@@ -82,7 +82,7 @@ Current (equities-only, what actually exists today):
                              from raw-data display
 /ui/                        charts, dashboards, education content
 /ui/trading/                 paper-trading UI: order-entry form, portfolio dashboard
-/brokerage/                 EMPTY until Phase 5 is explicitly authorized — do not scaffold yet
+/brokerage/                 EMPTY until Phase 6 is explicitly authorized — do not scaffold yet
 ```
 
 Future, once a second track is authorized (not built yet — see "Current build scope"), the
@@ -113,11 +113,11 @@ it's talking to:
 - Every response includes: `sourceType: 'real-time' | 'delayed' | 'historical' | 'simulated'`,
   `timestamp`, and a `stale: boolean` flag
 
-## Phase-by-phase build order
+## Build order
 This build order is for the equities × swing-trading track (see "Current build scope"). Other
 tracks are not scheduled.
 
-1. **Simulated data adapter** — generates plausible OHLC/quote data so every other layer can
+1. **Step 1: Simulated data adapter** — generates plausible OHLC/quote data so every other layer can
    be built and tested without any vendor account or API key. ✅ Built — see
    `/data-providers/simulated.ts`.
 
@@ -125,22 +125,22 @@ tracks are not scheduled.
    **paper-trading engine** (`/trading-engine/`) and its **order-entry/portfolio UI**
    (`/ui/trading/`) — account state, market-order execution, buying-power and shares-held
    checks, and localStorage persistence, all running on the simulated adapter above. ✅ Built.
-2. **Education module** — content + simulator using the simulated adapter.
-3. **Indicator services** — moving averages, RSI, MACD, ATR, VWAP, support/resistance, computed
+2. **Step 2: Education module** — content + simulator using the simulated adapter.
+3. **Step 3: Indicator services** — moving averages, RSI, MACD, ATR, VWAP, support/resistance, computed
    from OHLC (works identically on simulated or real data since it's downstream of the adapter).
-4. **Charting UI** — candlesticks, multiple timeframes, indicator overlays.
-5. **AI coach (interpretation layer)** — consumes normalized data + indicators, walks through
+4. **Step 4: Charting UI** — candlesticks, multiple timeframes, indicator overlays.
+5. **Step 5: AI coach (interpretation layer)** — consumes normalized data + indicators, walks through
    a setup, explicitly separates fact vs. interpretation, never issues directives.
-6. **Trading Readiness system** — risk-management tests, position-sizing tests, chart-analysis
+6. **Step 6: Trading Readiness system** — risk-management tests, position-sizing tests, chart-analysis
    tests, drawdown/consistency tracking. Gates progression on demonstrated skill, not P&L.
-7. **Real data adapter research** — ✅ Resolved: Alpaca Market Data (free tier) selected,
+7. **Step 7: Real data adapter research** — ✅ Resolved: Alpaca Market Data (free tier) selected,
    chosen for genuine bid/ask via its IEX feed — see `data-providers/alpaca.ts`'s class-level
    comment for the rationale. `AlpacaMarketDataProvider` implements `MarketDataProvider` and is
    tested (`data-providers/alpaca.test.ts`), but it is not yet wired into any
    provider-selection logic or the UI — see "Current provider status" below.
-8. **Brokerage research (Phase 5, later, separate authorization)** — not started.
+8. **Step 8: Brokerage research (CLAUDE.md Phase 6, later, separate authorization)** — not started.
 
-## Open items to research before Phase 2
+## Open items to research before Phase 3
 **Resolved — see item 7 above:** Alpaca Market Data (free tier) was selected and
 `AlpacaMarketDataProvider` is built. The criteria that were being researched:
 - Which market-data vendor's licensing terms actually permit display in a consumer-facing app
@@ -160,7 +160,7 @@ It only runs under `npm run dev`. A deployed build has no equivalent yet — shi
 serverless function) built first; that isn't done.
 
 ## Current provider status
-- `data-providers/interface.ts` — the `MarketDataProvider` contract (Phase 1, complete).
+- `data-providers/interface.ts` — the `MarketDataProvider` contract (complete).
   Currently equities-shaped; will need to split into a shared base + asset-class extensions
   if/when a second asset class is authorized (see "Tracks: asset class × style" above).
 - `data-providers/simulated.ts` — `SimulatedMarketDataProvider`, a deterministic

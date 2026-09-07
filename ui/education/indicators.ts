@@ -5,8 +5,8 @@
 // Record-valued series.
 //
 // This file previously reimplemented the same formulas independently (flagged as duplication
-// to consolidate). Consolidated now rather than waiting for the dedicated Phase 3 /services/
-// layer (see ARCHITECTURE.md) — duplicated indicator math is a correctness risk, and the two
+// to consolidate). Consolidated now rather than waiting for the dedicated Step 3 /services/
+// layer (see ARCHITECTURE.md build order) — duplicated indicator math is a correctness risk, and the two
 // implementations already had to be proven numerically identical before this refactor, so there
 // was no benefit to keeping both around.
 

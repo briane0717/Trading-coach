@@ -280,3 +280,98 @@ describe('PaperTradingDashboard indicator toggles', () => {
     expect(lastChartProps().oscillatorPane).toBeUndefined();
   });
 });
+
+describe('PaperTradingDashboard timeframe selector', () => {
+  it('defaults to 1d and passes the selected timeframe to the chart when switched', async () => {
+    const user = userEvent.setup();
+    seedAccountWithPosition();
+    renderDashboard();
+
+    const chart = await screen.findByTestId('candlestick-chart');
+    expect(chart).toHaveAttribute('data-timeframe', '1d');
+
+    await user.click(screen.getByRole('button', { name: '5m' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('candlestick-chart')).toHaveAttribute('data-timeframe', '5m');
+    });
+  });
+
+  it('clears an active indicator selection and disables the indicator controls when switching away from 1d', async () => {
+    const user = userEvent.setup();
+    seedAccountWithPosition();
+    mockIndicatorsImplementation(async (_symbol, list) =>
+      makeIndicatorsResponse(
+        list.map((req) =>
+          makeIndicatorResult({
+            name: req.name as IndicatorResult['name'],
+            period: 20,
+            points: [{ timestamp: 1, value: 111 }],
+          })
+        )
+      )
+    );
+    renderDashboard();
+    await screen.findByTestId('candlestick-chart');
+
+    await user.click(screen.getByLabelText('SMA (20)'));
+    await waitFor(() => {
+      expect(lastChartProps().overlayLines).toHaveLength(1);
+    });
+
+    await user.click(screen.getByRole('button', { name: '1h' }));
+
+    await waitFor(() => {
+      expect(lastChartProps().overlayLines).toBeUndefined();
+    });
+    expect(lastChartProps().oscillatorPane).toBeUndefined();
+    expect(lastChartProps().macdPane).toBeUndefined();
+
+    expect(screen.getByLabelText('SMA (20)')).toBeDisabled();
+    expect(screen.getByLabelText('SMA (20)')).not.toBeChecked();
+    expect(screen.getByLabelText('EMA (20)')).toBeDisabled();
+    expect(screen.getByLabelText('VWAP')).toBeDisabled();
+    expect(screen.getByLabelText('Bottom pane')).toBeDisabled();
+    expect(
+      screen.getByText('Indicators available on daily view only for now.')
+    ).toBeInTheDocument();
+  });
+
+  it('re-enables indicator controls when switching back to 1d, without restoring the prior selection', async () => {
+    const user = userEvent.setup();
+    seedAccountWithPosition();
+    mockIndicatorsImplementation(async (_symbol, list) =>
+      makeIndicatorsResponse(
+        list.map((req) =>
+          makeIndicatorResult({
+            name: req.name as IndicatorResult['name'],
+            period: 20,
+            points: [{ timestamp: 1, value: 111 }],
+          })
+        )
+      )
+    );
+    renderDashboard();
+    await screen.findByTestId('candlestick-chart');
+
+    await user.click(screen.getByLabelText('SMA (20)'));
+    await waitFor(() => expect(lastChartProps().overlayLines).toHaveLength(1));
+
+    await user.click(screen.getByRole('button', { name: '15m' }));
+    await waitFor(() => expect(screen.getByLabelText('SMA (20)')).toBeDisabled());
+
+    await user.click(screen.getByRole('button', { name: '1d' }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('SMA (20)')).not.toBeDisabled();
+    });
+    expect(screen.getByLabelText('SMA (20)')).not.toBeChecked();
+    expect(screen.getByLabelText('EMA (20)')).not.toBeDisabled();
+    expect(screen.getByLabelText('VWAP')).not.toBeDisabled();
+    expect(screen.getByLabelText('Bottom pane')).not.toBeDisabled();
+    expect(lastChartProps().overlayLines).toBeUndefined();
+    expect(
+      screen.queryByText('Indicators available on daily view only for now.')
+    ).not.toBeInTheDocument();
+  });
+});

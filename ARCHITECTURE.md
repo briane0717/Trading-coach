@@ -128,10 +128,30 @@ tracks are not scheduled.
 2. **Step 2: Education module** — content + simulator using the simulated adapter.
 3. **Step 3: Indicator services** — moving averages, RSI, MACD, ATR, VWAP, support/resistance, computed
    from OHLC (works identically on simulated or real data since it's downstream of the adapter).
-4. **Step 4: Charting UI** — candlesticks, multiple timeframes, indicator overlays. Candlestick
-   chart on `/trading` ✅ Built — reuses `CandlestickChart` via a `provider` prop, with
-   `activeSymbol` state lifted into `PaperTradingDashboard`; timeframe hardcoded to `1d`.
-   Indicator overlays and the timeframe switcher not yet built.
+4. **Step 4: Charting UI** — candlesticks, multiple timeframes, indicator overlays.
+   - Candlestick chart on `/trading` ✅ Built — reuses `CandlestickChart` via a `provider` prop,
+     with `activeSymbol` state lifted into `PaperTradingDashboard`.
+   - Indicator toggles ✅ Built (`PaperTradingDashboard.tsx`) — SMA/EMA/VWAP render as
+     independent multi-select overlay checkboxes (`CandlestickChart`'s `overlayLines` accepts
+     more than one at a time); RSI/ATR/MACD share a single-select "bottom pane" control
+     (`None` / `RSI` / `ATR` / `MACD`), since `CandlestickChart` has only one `oscillatorPane`
+     slot and one `macdPane` slot — at most one bottom-pane indicator can render at once.
+     Fixed default periods only this round (SMA 20, EMA 20, RSI 14, ATR 14; VWAP and MACD use
+     `data-providers/internal/indicators.ts`'s existing internal defaults) — no
+     period-customization UI yet.
+   - Timeframe switcher ✅ Built (`PaperTradingDashboard.tsx`) — a 1m/5m/15m/1h/1d selector
+     replaces the previously-hardcoded `timeframe="1d"` passed to `CandlestickChart`.
+     `CandlestickChart` itself needed no changes: it was already timeframe-generic, calling
+     `provider.getIntraday(symbol, timeframe)` for any of the five values.
+
+     **Known limitation, not a design choice:** `getIndicators` is still daily-only under the
+     hood — `IndicatorRequest`/`IndicatorResult` (`normalized/types.ts`) and both provider
+     implementations (`data-providers/simulated.ts`, `data-providers/alpaca.ts`) take no
+     timeframe parameter and always compute against daily candles. So whenever the selected
+     timeframe isn't `1d`, `PaperTradingDashboard` disables the SMA/EMA/VWAP checkboxes and the
+     bottom-pane selector and clears any active indicator selection, with an inline note
+     ("Indicators available on daily view only for now."). This is a gap to close, not a
+     permanent restriction — revisit once `getIndicators` grows a timeframe parameter.
 5. **Step 5: AI coach (interpretation layer)** — consumes normalized data + indicators, walks through
    a setup, explicitly separates fact vs. interpretation, never issues directives.
 6. **Step 6: Trading Readiness system** — risk-management tests, position-sizing tests, chart-analysis

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CandlestickChart } from '../education/CandlestickChart';
-import type { IndicatorRequest, IndicatorResult, SourceType, WithMeta, Quote } from '../../normalized';
+import type { IndicatorRequest, IndicatorResult, SourceType, Timeframe, WithMeta, Quote } from '../../normalized';
 import { getBuyingPower, getEquity, getUnrealizedPnL } from '../../trading-engine';
 import { usePaperAccount } from './usePaperAccount';
 import { OrderForm, selectMarketDataProvider } from './OrderForm';
@@ -17,6 +17,8 @@ const SOURCE_LABEL: Record<SourceType, string> = {
 };
 
 type BottomPane = 'None' | 'RSI' | 'ATR' | 'MACD';
+
+const TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '1h', '1d'];
 
 // Fixed defaults for this round — no period-customization UI yet (see ARCHITECTURE.md Step 4).
 const SMA_PERIOD = 20;
@@ -51,6 +53,7 @@ export function PaperTradingDashboard() {
   const [quotesLoading, setQuotesLoading] = useState(false);
   const [quotesError, setQuotesError] = useState<string | null>(null);
   const [activeSymbol, setActiveSymbol] = useState<string>('');
+  const [timeframe, setTimeframe] = useState<Timeframe>('1d');
 
   const [showSMA, setShowSMA] = useState(false);
   const [showEMA, setShowEMA] = useState(false);
@@ -112,6 +115,19 @@ export function PaperTradingDashboard() {
           0
         )
       : undefined;
+
+  const indicatorsAvailable = timeframe === '1d';
+
+  // getIndicators is daily-only under the hood (no timeframe param on IndicatorRequest yet), so
+  // switching away from '1d' clears any active selection rather than leaving a stale overlay
+  // computed from daily data displayed against, say, hourly candles.
+  useEffect(() => {
+    if (indicatorsAvailable) return;
+    setShowSMA(false);
+    setShowEMA(false);
+    setShowVWAP(false);
+    setBottomPane('None');
+  }, [indicatorsAvailable]);
 
   useEffect(() => {
     const list: IndicatorRequest[] = [];
@@ -276,11 +292,29 @@ export function PaperTradingDashboard() {
           </p>
         ) : (
           <>
+            <div className="paper-trading-timeframe-controls">
+              {TIMEFRAMES.map((tf) => (
+                <button
+                  key={tf}
+                  type="button"
+                  aria-pressed={tf === timeframe}
+                  className={
+                    tf === timeframe
+                      ? 'paper-trading-timeframe-btn paper-trading-timeframe-btn--active'
+                      : 'paper-trading-timeframe-btn'
+                  }
+                  onClick={() => setTimeframe(tf)}
+                >
+                  {tf}
+                </button>
+              ))}
+            </div>
             <div className="paper-trading-indicator-controls">
               <label>
                 <input
                   type="checkbox"
                   checked={showSMA}
+                  disabled={!indicatorsAvailable}
                   onChange={(e) => setShowSMA(e.target.checked)}
                 />
                 SMA ({SMA_PERIOD})
@@ -289,6 +323,7 @@ export function PaperTradingDashboard() {
                 <input
                   type="checkbox"
                   checked={showEMA}
+                  disabled={!indicatorsAvailable}
                   onChange={(e) => setShowEMA(e.target.checked)}
                 />
                 EMA ({EMA_PERIOD})
@@ -297,6 +332,7 @@ export function PaperTradingDashboard() {
                 <input
                   type="checkbox"
                   checked={showVWAP}
+                  disabled={!indicatorsAvailable}
                   onChange={(e) => setShowVWAP(e.target.checked)}
                 />
                 VWAP
@@ -305,6 +341,7 @@ export function PaperTradingDashboard() {
                 Bottom pane
                 <select
                   value={bottomPane}
+                  disabled={!indicatorsAvailable}
                   onChange={(e) => setBottomPane(e.target.value as BottomPane)}
                 >
                   <option value="None">None</option>
@@ -314,6 +351,11 @@ export function PaperTradingDashboard() {
                 </select>
               </label>
             </div>
+            {!indicatorsAvailable && (
+              <p className="paper-trading-indicator-note">
+                Indicators available on daily view only for now.
+              </p>
+            )}
             {indicatorsError && (
               <p className="paper-trading-warning">
                 Couldn't load indicators: {indicatorsError}
@@ -321,7 +363,7 @@ export function PaperTradingDashboard() {
             )}
             <CandlestickChart
               symbol={activeSymbol}
-              timeframe="1d"
+              timeframe={timeframe}
               provider={provider}
               overlayLines={overlayLines.length > 0 ? overlayLines : undefined}
               oscillatorPane={oscillatorPane}

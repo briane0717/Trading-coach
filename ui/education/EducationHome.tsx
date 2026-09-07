@@ -14,6 +14,9 @@ export function EducationHome() {
           </li>
         ))}
       </ul>
+      <p className="module-intro">
+        <Link to="/trading">Go to your paper trading account &rarr;</Link>
+      </p>
     </article>
   );
 }

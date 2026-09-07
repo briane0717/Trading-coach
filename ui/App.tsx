@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { educationModules } from './education/modules/registry';
 import { EducationHome } from './education/EducationHome';
+import { PaperTradingDashboard } from './trading/PaperTradingDashboard';
 import './education/module.css';
 
 export function App() {
@@ -12,6 +13,7 @@ export function App() {
         {educationModules.map((m) => (
           <Route key={m.id} path={m.path} element={<m.component />} />
         ))}
+        <Route path="/trading" element={<PaperTradingDashboard />} />
       </Routes>
     </BrowserRouter>
   );

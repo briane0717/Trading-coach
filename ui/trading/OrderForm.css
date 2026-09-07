@@ -1,0 +1,248 @@
+.order-form {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.order-form h2 {
+  margin: 0 0 1rem;
+  font-size: 1.2rem;
+}
+
+.order-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.order-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1 1 160px;
+}
+
+.order-form-field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.order-form-field input {
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+}
+
+.order-form-field input:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+  border-color: #2563eb;
+}
+
+.order-form-field input:disabled {
+  background: #f9fafb;
+  color: #9ca3af;
+}
+
+.order-form-static-value {
+  margin: 0;
+  padding: 0.45rem 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.order-form-quote-btn {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  background: #fff;
+  color: #2563eb;
+  cursor: pointer;
+  height: fit-content;
+}
+
+.order-form-quote-btn:disabled {
+  border-color: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.order-form-quote {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin: -0.25rem 0 1rem;
+  padding: 0.6rem 0.9rem;
+  background: #f9fafb;
+  border-radius: 6px;
+}
+
+.order-form-quote-price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.order-form-quote-detail {
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+
+.order-form-source-badge {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+}
+
+.order-form-source-badge--simulated {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.order-form-source-badge--real-time {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.order-form-source-badge--delayed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.order-form-source-badge--historical {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.order-form-side-toggle {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.order-form-side-btn {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.45rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+}
+
+.order-form-side-btn--active {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.order-form-note {
+  margin: -0.5rem 0 1rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.order-form-risk {
+  margin: 0 0 1.25rem;
+  padding: 0.9rem 1rem;
+  background: #f9fafb;
+  border-radius: 6px;
+}
+
+.order-form-risk-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+.order-form-risk-row:last-child {
+  border-bottom: none;
+}
+
+.order-form-risk-row dt {
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.order-form-risk-row dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.order-form-risk-bad {
+  color: #dc2626;
+}
+
+.order-form-risk-good {
+  color: #166534;
+}
+
+.order-form-primary-btn {
+  font: inherit;
+  font-weight: 700;
+  padding: 0.6rem 1.4rem;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+}
+
+.order-form-primary-btn:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}
+
+.order-form-secondary-btn {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.6rem 1.4rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+}
+
+.order-form-confirm {
+  padding: 0.9rem 1rem;
+  background: #eff6ff;
+  border-radius: 6px;
+}
+
+.order-form-confirm-summary {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+}
+
+.order-form-confirm-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.order-form-error {
+  color: #dc2626;
+  font-size: 0.85rem;
+  margin: 0.3rem 0 1rem;
+}
+
+.order-form-success {
+  color: #166534;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 1rem 0 0;
+}

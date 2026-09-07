@@ -1,0 +1,170 @@
+.paper-trading {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+  line-height: 1.6;
+  color: #1f2937;
+}
+
+.paper-trading-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #2563eb;
+  margin: 0 0 0.25rem;
+}
+
+.paper-trading-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.paper-trading h1 {
+  margin: 0 0 0.25rem;
+  font-size: 2rem;
+}
+
+.paper-trading h2 {
+  margin: 2rem 0 0.75rem;
+  font-size: 1.25rem;
+}
+
+.paper-trading-back-link {
+  font-size: 0.9rem;
+  color: #2563eb;
+}
+
+.paper-trading-disclaimer {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: 0 0 1.5rem;
+}
+
+.paper-trading-warning {
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 6px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  margin: 0 0 1.25rem;
+}
+
+.paper-trading-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin: 0 0 1.5rem;
+}
+
+.paper-trading-summary-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.paper-trading-summary-item dt {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0 0 0.25rem;
+}
+
+.paper-trading-summary-item dd {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.paper-trading-good {
+  color: #166534;
+}
+
+.paper-trading-bad {
+  color: #dc2626;
+}
+
+.paper-trading-placeholder {
+  color: #6b7280;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.paper-trading-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.paper-trading-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.paper-trading-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid #f3f4f6;
+  font-variant-numeric: tabular-nums;
+}
+
+.paper-trading-source-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+.paper-trading-source-badge--simulated {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.paper-trading-source-badge--real-time {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.paper-trading-source-badge--delayed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.paper-trading-source-badge--historical {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.paper-trading-side-buy {
+  color: #166534;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.paper-trading-side-sell {
+  color: #991b1b;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.paper-trading-history-scroll {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.paper-trading-history-scroll .paper-trading-table th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+}

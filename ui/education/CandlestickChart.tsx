@@ -10,9 +10,10 @@ import {
   type ISeriesApi,
 } from 'lightweight-charts';
 import { SimulatedMarketDataProvider } from '../../data-providers';
+import type { MarketDataProvider } from '../../data-providers';
 import type { Candle, SourceType, Timeframe } from '../../normalized';
 
-const provider = new SimulatedMarketDataProvider();
+const defaultProvider = new SimulatedMarketDataProvider();
 
 const SOURCE_LABEL: Record<SourceType, string> = {
   'real-time': 'Real-time',
@@ -37,11 +38,16 @@ export function CandlestickChart({
   overlayLines,
   oscillatorPane,
   macdPane,
+  provider,
 }: {
   symbol: string;
   timeframe: Timeframe;
   candles?: Candle[];
   sourceType?: SourceType;
+  /** Provider to fetch live candles from when `candles` isn't given. Defaults to a shared
+   * `SimulatedMarketDataProvider` — pass this to use a different provider (e.g. the one
+   * selected by `selectMarketDataProvider` on /trading) without affecting other call sites. */
+  provider?: MarketDataProvider;
   showVolume?: boolean;
   priceLines?: { price: number; label: string; color?: string }[];
   /** Line series overlaid on the candles, e.g. an SMA/EMA — plotted at their own timestamps. */
@@ -289,7 +295,7 @@ export function CandlestickChart({
     }
 
     let cancelled = false;
-    provider
+    (provider ?? defaultProvider)
       .getIntraday(symbol, timeframe)
       .then((result) => {
         if (cancelled) return;
@@ -332,6 +338,7 @@ export function CandlestickChart({
     overlayLines,
     oscillatorPane,
     macdPane,
+    provider,
   ]);
 
   return (

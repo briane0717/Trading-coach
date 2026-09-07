@@ -56,6 +56,7 @@ export function OrderForm({
   account,
   equity,
   onSubmit,
+  onQuoteSymbolChange,
 }: {
   account: Account;
   /** Current total account equity (cash + market value of all positions) — used for % account
@@ -63,6 +64,9 @@ export function OrderForm({
    * this form only fetches a quote for the symbol being traded. */
   equity: number;
   onSubmit: (order: Order) => OrderResult;
+  /** Called with the normalized symbol after a quote is successfully fetched — lets a parent
+   * (e.g. PaperTradingDashboard) track which symbol to chart. Not called on a failed fetch. */
+  onQuoteSymbolChange?: (symbol: string) => void;
 }) {
   const id = useId();
   const [symbolInput, setSymbolInput] = useState('');
@@ -89,6 +93,7 @@ export function OrderForm({
     try {
       const result = await provider.getQuote(normalizedSymbol);
       setQuote(result);
+      onQuoteSymbolChange?.(normalizedSymbol);
     } catch (err) {
       setQuote(null);
       setQuoteError(err instanceof Error ? err.message : String(err));

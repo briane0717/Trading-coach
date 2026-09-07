@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { CandlestickChart } from '../education/CandlestickChart';
 import type { SourceType, WithMeta, Quote } from '../../normalized';
 import { getBuyingPower, getEquity, getUnrealizedPnL } from '../../trading-engine';
 import { usePaperAccount } from './usePaperAccount';
@@ -37,6 +38,7 @@ export function PaperTradingDashboard() {
   const [quotes, setQuotes] = useState<Record<string, WithMeta<Quote>>>({});
   const [quotesLoading, setQuotesLoading] = useState(false);
   const [quotesError, setQuotesError] = useState<string | null>(null);
+  const [activeSymbol, setActiveSymbol] = useState<string>('');
 
   useEffect(() => {
     const symbols = Object.keys(account.positions);
@@ -67,6 +69,13 @@ export function PaperTradingDashboard() {
   }, [account]);
 
   const heldSymbols = Object.keys(account.positions).sort();
+
+  useEffect(() => {
+    if (activeSymbol === '' && heldSymbols.length > 0) {
+      setActiveSymbol(heldSymbols[0]);
+    }
+  }, [activeSymbol, heldSymbols]);
+
   const allQuotesLoaded = heldSymbols.every((s) => quotes[s] !== undefined);
   const priceMap: Record<string, number> = {};
   for (const symbol of Object.keys(quotes)) priceMap[symbol] = quotes[symbol].price;
@@ -135,6 +144,16 @@ export function PaperTradingDashboard() {
       )}
 
       <section>
+        {activeSymbol === '' ? (
+          <p className="paper-trading-placeholder">
+            Get a quote or hold a position to see its chart here.
+          </p>
+        ) : (
+          <CandlestickChart symbol={activeSymbol} timeframe="1d" provider={provider} />
+        )}
+      </section>
+
+      <section>
         <h2>Open positions</h2>
         {heldSymbols.length === 0 ? (
           <p className="paper-trading-placeholder">No open positions yet.</p>
@@ -180,7 +199,12 @@ export function PaperTradingDashboard() {
       </section>
 
       <section>
-        <OrderForm account={account} equity={equity} onSubmit={submitOrder} />
+        <OrderForm
+          account={account}
+          equity={equity}
+          onSubmit={submitOrder}
+          onQuoteSymbolChange={setActiveSymbol}
+        />
       </section>
 
       <section>

@@ -128,7 +128,10 @@ tracks are not scheduled.
 2. **Step 2: Education module** — content + simulator using the simulated adapter.
 3. **Step 3: Indicator services** — moving averages, RSI, MACD, ATR, VWAP, support/resistance, computed
    from OHLC (works identically on simulated or real data since it's downstream of the adapter).
-4. **Step 4: Charting UI** — candlesticks, multiple timeframes, indicator overlays.
+4. **Step 4: Charting UI** — candlesticks, multiple timeframes, indicator overlays. Candlestick
+   chart on `/trading` ✅ Built — reuses `CandlestickChart` via a `provider` prop, with
+   `activeSymbol` state lifted into `PaperTradingDashboard`; timeframe hardcoded to `1d`.
+   Indicator overlays and the timeframe switcher not yet built.
 5. **Step 5: AI coach (interpretation layer)** — consumes normalized data + indicators, walks through
    a setup, explicitly separates fact vs. interpretation, never issues directives.
 6. **Step 6: Trading Readiness system** — risk-management tests, position-sizing tests, chart-analysis

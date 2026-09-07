@@ -7,19 +7,22 @@ import { createAccount } from '../../trading-engine';
 import type { Account, Order, OrderResult, Trade } from '../../trading-engine';
 import type { Quote, SourceType, WithMeta } from '../../normalized';
 
-// OrderForm imports a module-level `new SimulatedMarketDataProvider()` singleton directly
-// rather than accepting one as a prop, so tests replace the module to control what getQuote
-// resolves to instead of depending on the simulator's real (seeded-random) prices. Both
-// provider classes are mocked (not just Simulated) so selectMarketDataProvider's choice
-// between them can be asserted without hitting the real Alpaca network path.
-const { mockGetQuote, mockAlpacaGetQuote } = vi.hoisted(() => ({
+// OrderForm imports a module-level `new SimulatedMarketDataProvider()` (or, when
+// VITE_MARKET_DATA_PROVIDER=alpaca, `new AlpacaMarketDataProvider()`) singleton directly rather
+// than accepting one as a prop, so tests replace the module to control what getQuote resolves to
+// instead of depending on the simulator's real (seeded-random) prices or the real Alpaca network
+// path. Both provider classes share the same `getQuote` mock — this file's tests exercise
+// OrderForm's own behavior, which doesn't depend on which provider is active, so they should
+// pass the same way regardless of the environment's VITE_MARKET_DATA_PROVIDER value.
+// selectMarketDataProvider's own choice of *class* is asserted separately below, by class
+// identity, and is unaffected by them sharing a getQuote mock.
+const { mockGetQuote } = vi.hoisted(() => ({
   mockGetQuote: vi.fn(),
-  mockAlpacaGetQuote: vi.fn(),
 }));
 
 vi.mock('../../data-providers', () => ({
   SimulatedMarketDataProvider: vi.fn().mockImplementation(() => ({ getQuote: mockGetQuote })),
-  AlpacaMarketDataProvider: vi.fn().mockImplementation(() => ({ getQuote: mockAlpacaGetQuote })),
+  AlpacaMarketDataProvider: vi.fn().mockImplementation(() => ({ getQuote: mockGetQuote })),
 }));
 
 function makeQuote(symbol: string, overrides: Partial<WithMeta<Quote>> = {}): WithMeta<Quote> {
@@ -50,12 +53,24 @@ beforeEach(() => {
 });
 
 function renderOrderForm(
-  overrides: Partial<{ account: Account; equity: number; onSubmit: (order: Order) => OrderResult }> = {}
+  overrides: Partial<{
+    account: Account;
+    equity: number;
+    onSubmit: (order: Order) => OrderResult;
+    onQuoteSymbolChange: (symbol: string) => void;
+  }> = {}
 ) {
   const account = overrides.account ?? createAccount({ startingBalance: 10_000 });
   const equity = overrides.equity ?? account.cash;
   const onSubmit = overrides.onSubmit ?? vi.fn<(order: Order) => OrderResult>();
-  render(<OrderForm account={account} equity={equity} onSubmit={onSubmit} />);
+  render(
+    <OrderForm
+      account={account}
+      equity={equity}
+      onSubmit={onSubmit}
+      onQuoteSymbolChange={overrides.onQuoteSymbolChange}
+    />
+  );
   return { account, equity, onSubmit };
 }
 
@@ -316,6 +331,32 @@ describe('OrderForm quote failure', () => {
 
     expect(await screen.findByText(/Couldn't fetch a quote: symbol not found/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Review order' })).toBeDisabled();
+  });
+});
+
+describe('OrderForm onQuoteSymbolChange', () => {
+  it('fires with the normalized symbol after a successful quote fetch', async () => {
+    const user = userEvent.setup();
+    const onQuoteSymbolChange = vi.fn();
+    renderOrderForm({ onQuoteSymbolChange });
+
+    await fetchQuote(user, 'aapl');
+
+    expect(onQuoteSymbolChange).toHaveBeenCalledTimes(1);
+    expect(onQuoteSymbolChange).toHaveBeenCalledWith('AAPL');
+  });
+
+  it('does not fire on a failed quote fetch', async () => {
+    const user = userEvent.setup();
+    mockGetQuote.mockRejectedValueOnce(new Error('symbol not found'));
+    const onQuoteSymbolChange = vi.fn();
+    renderOrderForm({ onQuoteSymbolChange });
+
+    await user.type(screen.getByLabelText('Symbol'), 'BADSYM');
+    await user.click(screen.getByRole('button', { name: 'Get quote' }));
+    await screen.findByText(/Couldn't fetch a quote: symbol not found/);
+
+    expect(onQuoteSymbolChange).not.toHaveBeenCalled();
   });
 });
 

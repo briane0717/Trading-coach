@@ -232,17 +232,29 @@ export class SimulatedMarketDataProvider implements MarketDataProvider {
     };
   }
 
+  /** The last `count` bars at `timeframe`, ending at `now` — the same candle-generation path
+   * getIntraday uses, parameterized so getIndicators can ask for as many bars as a period needs
+   * rather than the fixed per-timeframe window getIntraday returns. */
+  private candlesForTimeframe(
+    symbol: string,
+    timeframe: Timeframe,
+    count: number,
+    now: number
+  ): Candle[] {
+    const { intervalMs } = INTRADAY_PARAMS[timeframe];
+    const endTime = alignDown(now, intervalMs);
+    return intervalMs === DAY_MS
+      ? this.dailyCandles(symbol, endTime, count)
+      : this.generateCandles(symbol, count, intervalMs, endTime);
+  }
+
   async getIntraday(
     symbol: string,
     timeframe: Timeframe
   ): Promise<WithMeta<{ symbol: string; timeframe: Timeframe; candles: Candle[] }>> {
     const now = this.now();
-    const { intervalMs, count } = INTRADAY_PARAMS[timeframe];
-    const endTime = alignDown(now, intervalMs);
-    const candles =
-      intervalMs === DAY_MS
-        ? this.dailyCandles(symbol, endTime, count)
-        : this.generateCandles(symbol, count, intervalMs, endTime);
+    const { count } = INTRADAY_PARAMS[timeframe];
+    const candles = this.candlesForTimeframe(symbol, timeframe, count, now);
 
     return { symbol, timeframe, candles, sourceType: 'simulated', timestamp: now, stale: false };
   }
@@ -263,14 +275,26 @@ export class SimulatedMarketDataProvider implements MarketDataProvider {
     list: IndicatorRequest[]
   ): Promise<WithMeta<{ symbol: string; indicators: IndicatorResult[] }>> {
     const now = this.now();
-    const endTime = alignDown(now, DAY_MS);
-    const neededBars = list.map(
-      (req) => (req.period ?? DEFAULT_INDICATOR_PERIOD[req.name] ?? 20) + 50
-    );
-    const barCount = Math.max(300, ...neededBars);
-    const candles = this.dailyCandles(symbol, endTime, barCount);
+
+    // Bar count needed for a request is period-relative to its own timeframe (SMA(20) on '5m'
+    // means the last 20 five-minute bars, not 20 daily bars), so requests are grouped by
+    // timeframe and each group gets its own candle series sized for the periods within it.
+    const candlesByTimeframe = new Map<Timeframe, Candle[]>();
+    const candlesFor = (timeframe: Timeframe): Candle[] => {
+      let candles = candlesByTimeframe.get(timeframe);
+      if (!candles) {
+        const neededBars = list
+          .filter((req) => (req.timeframe ?? '1d') === timeframe)
+          .map((req) => (req.period ?? DEFAULT_INDICATOR_PERIOD[req.name] ?? 20) + 50);
+        const barCount = Math.max(300, ...neededBars);
+        candles = this.candlesForTimeframe(symbol, timeframe, barCount, now);
+        candlesByTimeframe.set(timeframe, candles);
+      }
+      return candles;
+    };
 
     const indicators: IndicatorResult[] = list.map((req) => {
+      const candles = candlesFor(req.timeframe ?? '1d');
       switch (req.name) {
         case 'SMA': {
           const period = req.period ?? DEFAULT_INDICATOR_PERIOD.SMA!;

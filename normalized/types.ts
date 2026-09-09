@@ -54,6 +54,11 @@ export interface IndicatorRequest {
   name: IndicatorName;
   /** Lookback period, where applicable. Ignored by indicators that don't use one (e.g. VWAP). */
   period?: number;
+  /**
+   * Bar timeframe the period is measured in — e.g. SMA(20) on '5m' means the last 20 five-minute
+   * bars, not 20 daily bars. Defaults to '1d' when omitted.
+   */
+  timeframe?: Timeframe;
 }
 
 export interface IndicatorPoint {

@@ -339,4 +339,14 @@ describe('AlpacaMarketDataProvider.getIndicators', () => {
 
     await expect(provider().getIndicators('AAPL', [{ name: 'SMA' }])).rejects.toThrow(/500/);
   });
+
+  it('throws a clear, explicit error for a non-daily timeframe rather than silently using daily data', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      provider().getIndicators('AAPL', [{ name: 'SMA', period: 20, timeframe: '5m' }])
+    ).rejects.toThrow(/intraday indicators not yet supported for Alpaca/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

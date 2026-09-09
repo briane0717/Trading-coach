@@ -142,4 +142,48 @@ describe('SimulatedMarketDataProvider.getIndicators', () => {
     const vwap = indicators.find((i) => i.name === 'VWAP')!;
     expect(vwap.points.length).toBeGreaterThan(0);
   });
+
+  it('defaults to daily bars when timeframe is omitted', async () => {
+    const p = provider();
+    const withoutTimeframe = await p.getIndicators('SPY', [{ name: 'SMA', period: 10 }]);
+    const withDaily = await p.getIndicators('SPY', [{ name: 'SMA', period: 10, timeframe: '1d' }]);
+    expect(withoutTimeframe.indicators).toEqual(withDaily.indicators);
+  });
+
+  it('computes period as a bar count in the requested intraday timeframe, not daily bars', async () => {
+    const p = provider();
+    const symbol = 'INTRADAY-IND';
+
+    // barCount = max(300, period + 50); use a period above the floor so points.length pins down
+    // exactly how many bars were generated, and at what spacing.
+    const { indicators } = await p.getIndicators(symbol, [
+      { name: 'SMA', period: 280, timeframe: '5m' },
+    ]);
+    const smaResult = indicators.find((i) => i.name === 'SMA')!;
+    expect(smaResult.period).toBe(280);
+
+    // barCount = 330, so points = 330 - 280 + 1 = 51 — this would be wildly different (and the
+    // series would span months, not hours) if period were misread as daily bars.
+    expect(smaResult.points).toHaveLength(51);
+
+    for (let i = 1; i < smaResult.points.length; i++) {
+      expect(smaResult.points[i].timestamp - smaResult.points[i - 1].timestamp).toBe(5 * 60_000);
+    }
+  });
+
+  it('gives different results for the same period at different timeframes on the same symbol', async () => {
+    const p = provider();
+    const symbol = 'TIMEFRAME-DIFF';
+
+    const daily = await p.getIndicators(symbol, [{ name: 'SMA', period: 20, timeframe: '1d' }]);
+    const fiveMin = await p.getIndicators(symbol, [{ name: 'SMA', period: 20, timeframe: '5m' }]);
+
+    const dailyLast = daily.indicators[0].points.at(-1)!;
+    const fiveMinLast = fiveMin.indicators[0].points.at(-1)!;
+
+    // Daily bars are DAY_MS apart; 5m bars are 5 minutes apart — confirms getIndicators actually
+    // fetched a distinct, correctly-spaced series per timeframe rather than reusing daily data.
+    expect(dailyLast.timestamp).not.toBe(fiveMinLast.timestamp);
+    expect(fiveMinLast.value).not.toBe(dailyLast.value);
+  });
 });

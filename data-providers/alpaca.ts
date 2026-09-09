@@ -285,6 +285,13 @@ export class AlpacaMarketDataProvider implements MarketDataProvider {
     symbol: string,
     list: IndicatorRequest[]
   ): Promise<WithMeta<{ symbol: string; indicators: IndicatorResult[] }>> {
+    const nonDaily = list.find((req) => (req.timeframe ?? '1d') !== '1d');
+    if (nonDaily) {
+      throw new Error(
+        `intraday indicators not yet supported for Alpaca (requested timeframe: ${nonDaily.timeframe})`
+      );
+    }
+
     const neededBars = list.map(
       (req) => (req.period ?? DEFAULT_INDICATOR_PERIOD[req.name] ?? 20) + 50
     );

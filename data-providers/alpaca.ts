@@ -187,7 +187,8 @@ function toCandle(bar: AlpacaBar): Candle {
  * SDK, and never a direct cross-origin call, so Alpaca credentials stay server-side only (see
  * CLAUDE.md: never store brokerage/vendor credentials in client code).
  *
- * Not wired into any provider-selection logic or the UI yet — that's a separate, later step.
+ * Wired into provider selection and the UI as an explicit opt-in via
+ * VITE_MARKET_DATA_PROVIDER=alpaca — see ARCHITECTURE.md's "Current provider status" section.
  */
 export class AlpacaMarketDataProvider implements MarketDataProvider {
   private readonly now: () => number;

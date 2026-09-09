@@ -122,6 +122,16 @@ function calendarDaysForTradingDays(tradingDays: number): number {
 // calendar lookback comfortably covers a long weekend plus a holiday.
 const INTRADAY_LOOKBACK_CALENDAR_DAYS = 7;
 
+// getIndicators can ask for more bars than a single session holds (e.g. SMA(280) on '5m' needs
+// ~4 sessions' worth of 5-minute bars). Converts a bar count at `timeframe` into however many
+// calendar days of lookback comfortably covers that many trading sessions, reusing the same
+// weekend/holiday padding calendarDaysForTradingDays already applies for daily requests.
+function lookbackCalendarDaysFor(timeframe: Timeframe, barCount: number): number {
+  if (timeframe === '1d') return calendarDaysForTradingDays(barCount);
+  const sessionsNeeded = Math.ceil(barCount / INTRADAY_BAR_COUNTS[timeframe]);
+  return calendarDaysForTradingDays(sessionsNeeded);
+}
+
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -285,52 +295,59 @@ export class AlpacaMarketDataProvider implements MarketDataProvider {
     symbol: string,
     list: IndicatorRequest[]
   ): Promise<WithMeta<{ symbol: string; indicators: IndicatorResult[] }>> {
-    const nonDaily = list.find((req) => (req.timeframe ?? '1d') !== '1d');
-    if (nonDaily) {
-      throw new Error(
-        `intraday indicators not yet supported for Alpaca (requested timeframe: ${nonDaily.timeframe})`
-      );
-    }
-
-    const neededBars = list.map(
-      (req) => (req.period ?? DEFAULT_INDICATOR_PERIOD[req.name] ?? 20) + 50
-    );
-    const barCount = Math.max(300, ...neededBars);
-    const candles = await this.fetchBars(
-      symbol,
-      ALPACA_TIMEFRAME['1d'],
-      calendarDaysForTradingDays(barCount),
-      barCount
-    );
-
-    const indicators: IndicatorResult[] = list.map((req) => {
-      switch (req.name) {
-        case 'SMA': {
-          const period = req.period ?? DEFAULT_INDICATOR_PERIOD.SMA!;
-          return { name: 'SMA', period, points: sma(candles, period) };
-        }
-        case 'EMA': {
-          const period = req.period ?? DEFAULT_INDICATOR_PERIOD.EMA!;
-          return { name: 'EMA', period, points: ema(candles, period) };
-        }
-        case 'RSI': {
-          const period = req.period ?? DEFAULT_INDICATOR_PERIOD.RSI!;
-          return { name: 'RSI', period, points: rsi(candles, period) };
-        }
-        case 'ATR': {
-          const period = req.period ?? DEFAULT_INDICATOR_PERIOD.ATR!;
-          return { name: 'ATR', period, points: atr(candles, period) };
-        }
-        case 'MACD':
-          return { name: 'MACD', points: macd(candles) };
-        case 'VWAP':
-          return { name: 'VWAP', points: vwap(candles) };
-        default: {
-          const exhaustive: never = req.name;
-          throw new Error(`Unsupported indicator: ${exhaustive}`);
-        }
+    // Bar count needed for a request is period-relative to its own timeframe (SMA(20) on '5m'
+    // means the last 20 five-minute bars, not 20 daily bars), so requests are grouped by
+    // timeframe and each group gets exactly one bars fetch, sized for the periods within it.
+    const candlesByTimeframe = new Map<Timeframe, Promise<Candle[]>>();
+    const candlesFor = (timeframe: Timeframe): Promise<Candle[]> => {
+      let candles = candlesByTimeframe.get(timeframe);
+      if (!candles) {
+        const neededBars = list
+          .filter((req) => (req.timeframe ?? '1d') === timeframe)
+          .map((req) => (req.period ?? DEFAULT_INDICATOR_PERIOD[req.name] ?? 20) + 50);
+        const barCount = Math.max(300, ...neededBars);
+        candles = this.fetchBars(
+          symbol,
+          ALPACA_TIMEFRAME[timeframe],
+          lookbackCalendarDaysFor(timeframe, barCount),
+          barCount
+        );
+        candlesByTimeframe.set(timeframe, candles);
       }
-    });
+      return candles;
+    };
+
+    const indicators: IndicatorResult[] = await Promise.all(
+      list.map(async (req) => {
+        const candles = await candlesFor(req.timeframe ?? '1d');
+        switch (req.name) {
+          case 'SMA': {
+            const period = req.period ?? DEFAULT_INDICATOR_PERIOD.SMA!;
+            return { name: 'SMA', period, points: sma(candles, period) };
+          }
+          case 'EMA': {
+            const period = req.period ?? DEFAULT_INDICATOR_PERIOD.EMA!;
+            return { name: 'EMA', period, points: ema(candles, period) };
+          }
+          case 'RSI': {
+            const period = req.period ?? DEFAULT_INDICATOR_PERIOD.RSI!;
+            return { name: 'RSI', period, points: rsi(candles, period) };
+          }
+          case 'ATR': {
+            const period = req.period ?? DEFAULT_INDICATOR_PERIOD.ATR!;
+            return { name: 'ATR', period, points: atr(candles, period) };
+          }
+          case 'MACD':
+            return { name: 'MACD', points: macd(candles) };
+          case 'VWAP':
+            return { name: 'VWAP', points: vwap(candles) };
+          default: {
+            const exhaustive: never = req.name;
+            throw new Error(`Unsupported indicator: ${exhaustive}`);
+          }
+        }
+      })
+    );
 
     return { symbol, indicators, sourceType: 'historical', timestamp: this.now(), stale: false };
   }

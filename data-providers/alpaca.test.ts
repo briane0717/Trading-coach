@@ -109,6 +109,19 @@ function mockFetchRouting(handlers: { snapshot?: unknown; bars?: unknown }) {
   });
 }
 
+// Routes a /bars call to a fixture keyed by the request's Alpaca `timeframe` param (e.g.
+// '1Day', '5Min'), for tests where a single getIndicators call fetches more than one timeframe.
+function mockFetchRoutingByTimeframe(barsByAlpacaTimeframe: Record<string, unknown>) {
+  return vi.fn(async (input: string | URL) => {
+    const url = new URL(input.toString(), 'http://localhost');
+    const alpacaTimeframe = url.searchParams.get('timeframe');
+    if (!alpacaTimeframe || !(alpacaTimeframe in barsByAlpacaTimeframe)) {
+      throw new Error(`unexpected timeframe param: ${alpacaTimeframe}`);
+    }
+    return jsonResponse(barsByAlpacaTimeframe[alpacaTimeframe]);
+  });
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -340,13 +353,65 @@ describe('AlpacaMarketDataProvider.getIndicators', () => {
     await expect(provider().getIndicators('AAPL', [{ name: 'SMA' }])).rejects.toThrow(/500/);
   });
 
-  it('throws a clear, explicit error for a non-daily timeframe rather than silently using daily data', async () => {
-    const fetchMock = vi.fn();
+  it('fetches once per distinct timeframe in a batch, sized for the largest period in each group', async () => {
+    const dailyFixture = makeBarsFixture(300);
+    const fiveMinFixture = makeIntradayBarsFixture(330, 5 * 60_000);
+    const fetchMock = mockFetchRoutingByTimeframe({ '1Day': dailyFixture, '5Min': fiveMinFixture });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(
-      provider().getIndicators('AAPL', [{ name: 'SMA', period: 20, timeframe: '5m' }])
-    ).rejects.toThrow(/intraday indicators not yet supported for Alpaca/);
-    expect(fetchMock).not.toHaveBeenCalled();
+    await provider().getIndicators('AAPL', [
+      { name: 'SMA', period: 280, timeframe: '5m' },
+      { name: 'RSI', period: 14, timeframe: '5m' }, // same group — must not trigger a 2nd fetch
+      { name: 'SMA', period: 20, timeframe: '1d' },
+    ]);
+
+    // One fetch per distinct timeframe (5m, 1d), not one per request (3).
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const calls = fetchMock.mock.calls.map((c) => new URL(c[0].toString(), 'http://localhost'));
+    const fiveMinCall = calls.find((u) => u.searchParams.get('timeframe') === '5Min');
+    const dailyCall = calls.find((u) => u.searchParams.get('timeframe') === '1Day');
+    expect(fiveMinCall).toBeDefined();
+    expect(dailyCall).toBeDefined();
+
+    // 5m group's barCount = max(300, 280+50) = 330 bars = ceil(330/78) = 5 sessions of lookback
+    // (calendarDaysForTradingDays(5) = 18 days) — far less than the ~538 days that literally
+    // interpreting 330 as *daily* bars would require, proving the lookback is timeframe-aware.
+    const fiveMinLookbackDays =
+      (FIXED_NOW - new Date(fiveMinCall!.searchParams.get('start')!).getTime()) /
+      (24 * 60 * 60 * 1000);
+    expect(fiveMinLookbackDays).toBe(18);
+
+    const dailyLookbackDays =
+      (FIXED_NOW - new Date(dailyCall!.searchParams.get('start')!).getTime()) /
+      (24 * 60 * 60 * 1000);
+    expect(dailyLookbackDays).toBe(490); // calendarDaysForTradingDays(300), unchanged from before
+  });
+
+  it('produces different indicator values and bar spacing between timeframes for the same period', async () => {
+    const dailyFixture = makeBarsFixture(300);
+    const fiveMinFixture = makeIntradayBarsFixture(300, 5 * 60_000);
+    vi.stubGlobal(
+      'fetch',
+      mockFetchRoutingByTimeframe({ '1Day': dailyFixture, '5Min': fiveMinFixture })
+    );
+
+    const daily = await provider().getIndicators('AAPL', [
+      { name: 'SMA', period: 20, timeframe: '1d' },
+    ]);
+    const fiveMin = await provider().getIndicators('AAPL', [
+      { name: 'SMA', period: 20, timeframe: '5m' },
+    ]);
+
+    const dailyPoints = daily.indicators[0].points;
+    const fiveMinPoints = fiveMin.indicators[0].points;
+
+    expect(dailyPoints[1].timestamp - dailyPoints[0].timestamp).toBe(24 * 60 * 60_000);
+    expect(fiveMinPoints[1].timestamp - fiveMinPoints[0].timestamp).toBe(5 * 60_000);
+
+    // Both fixtures' final bar lands on the same instant (FIXED_NOW) by construction, so compare
+    // an earlier point instead, where the daily vs. 5-minute spacing has already diverged.
+    expect(dailyPoints[0].timestamp).not.toBe(fiveMinPoints[0].timestamp);
+    expect(fiveMinPoints.at(-1)!.value).not.toBe(dailyPoints.at(-1)!.value);
   });
 });

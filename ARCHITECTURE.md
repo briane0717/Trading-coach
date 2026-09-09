@@ -143,15 +143,13 @@ tracks are not scheduled.
      replaces the previously-hardcoded `timeframe="1d"` passed to `CandlestickChart`.
      `CandlestickChart` itself needed no changes: it was already timeframe-generic, calling
      `provider.getIntraday(symbol, timeframe)` for any of the five values.
-
-     **Known limitation, not a design choice:** `getIndicators` is still daily-only under the
-     hood — `IndicatorRequest`/`IndicatorResult` (`normalized/types.ts`) and both provider
-     implementations (`data-providers/simulated.ts`, `data-providers/alpaca.ts`) take no
-     timeframe parameter and always compute against daily candles. So whenever the selected
-     timeframe isn't `1d`, `PaperTradingDashboard` disables the SMA/EMA/VWAP checkboxes and the
-     bottom-pane selector and clears any active indicator selection, with an inline note
-     ("Indicators available on daily view only for now."). This is a gap to close, not a
-     permanent restriction — revisit once `getIndicators` grows a timeframe parameter.
+   - Timeframe-aware indicators ✅ Built — `IndicatorRequest` (`normalized/types.ts`) carries an
+     optional `timeframe` (defaulting to `1d`), period is bar-count-relative to that timeframe
+     (SMA(20) on `5m` = last 20 five-minute bars), and both `SimulatedMarketDataProvider` and
+     `AlpacaMarketDataProvider` fetch/generate candles at the requested timeframe rather than
+     always computing against daily bars. `PaperTradingDashboard` passes its current timeframe
+     on every `getIndicators` request and no longer disables or clears the SMA/EMA/VWAP
+     checkboxes or the bottom-pane selector when the chart is off `1d`.
 5. **Step 5: AI coach (interpretation layer)** — consumes normalized data + indicators, walks through
    a setup, explicitly separates fact vs. interpretation, never issues directives.
 6. **Step 6: Trading Readiness system** — risk-management tests, position-sizing tests, chart-analysis

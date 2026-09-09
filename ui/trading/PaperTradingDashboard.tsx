@@ -116,27 +116,14 @@ export function PaperTradingDashboard() {
         )
       : undefined;
 
-  const indicatorsAvailable = timeframe === '1d';
-
-  // getIndicators is daily-only under the hood (no timeframe param on IndicatorRequest yet), so
-  // switching away from '1d' clears any active selection rather than leaving a stale overlay
-  // computed from daily data displayed against, say, hourly candles.
-  useEffect(() => {
-    if (indicatorsAvailable) return;
-    setShowSMA(false);
-    setShowEMA(false);
-    setShowVWAP(false);
-    setBottomPane('None');
-  }, [indicatorsAvailable]);
-
   useEffect(() => {
     const list: IndicatorRequest[] = [];
-    if (showSMA) list.push({ name: 'SMA', period: SMA_PERIOD });
-    if (showEMA) list.push({ name: 'EMA', period: EMA_PERIOD });
-    if (showVWAP) list.push({ name: 'VWAP' });
-    if (bottomPane === 'RSI') list.push({ name: 'RSI', period: RSI_PERIOD });
-    if (bottomPane === 'ATR') list.push({ name: 'ATR', period: ATR_PERIOD });
-    if (bottomPane === 'MACD') list.push({ name: 'MACD' });
+    if (showSMA) list.push({ name: 'SMA', period: SMA_PERIOD, timeframe });
+    if (showEMA) list.push({ name: 'EMA', period: EMA_PERIOD, timeframe });
+    if (showVWAP) list.push({ name: 'VWAP', timeframe });
+    if (bottomPane === 'RSI') list.push({ name: 'RSI', period: RSI_PERIOD, timeframe });
+    if (bottomPane === 'ATR') list.push({ name: 'ATR', period: ATR_PERIOD, timeframe });
+    if (bottomPane === 'MACD') list.push({ name: 'MACD', timeframe });
 
     if (activeSymbol === '' || list.length === 0) {
       setIndicators([]);
@@ -157,7 +144,7 @@ export function PaperTradingDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [activeSymbol, showSMA, showEMA, showVWAP, bottomPane]);
+  }, [activeSymbol, showSMA, showEMA, showVWAP, bottomPane, timeframe]);
 
   const overlayLines = useMemo(() => {
     const lines: { label: string; color: string; points: { timestamp: number; value: number }[] }[] = [];
@@ -314,7 +301,6 @@ export function PaperTradingDashboard() {
                 <input
                   type="checkbox"
                   checked={showSMA}
-                  disabled={!indicatorsAvailable}
                   onChange={(e) => setShowSMA(e.target.checked)}
                 />
                 SMA ({SMA_PERIOD})
@@ -323,7 +309,6 @@ export function PaperTradingDashboard() {
                 <input
                   type="checkbox"
                   checked={showEMA}
-                  disabled={!indicatorsAvailable}
                   onChange={(e) => setShowEMA(e.target.checked)}
                 />
                 EMA ({EMA_PERIOD})
@@ -332,7 +317,6 @@ export function PaperTradingDashboard() {
                 <input
                   type="checkbox"
                   checked={showVWAP}
-                  disabled={!indicatorsAvailable}
                   onChange={(e) => setShowVWAP(e.target.checked)}
                 />
                 VWAP
@@ -341,7 +325,6 @@ export function PaperTradingDashboard() {
                 Bottom pane
                 <select
                   value={bottomPane}
-                  disabled={!indicatorsAvailable}
                   onChange={(e) => setBottomPane(e.target.value as BottomPane)}
                 >
                   <option value="None">None</option>
@@ -351,11 +334,6 @@ export function PaperTradingDashboard() {
                 </select>
               </label>
             </div>
-            {!indicatorsAvailable && (
-              <p className="paper-trading-indicator-note">
-                Indicators available on daily view only for now.
-              </p>
-            )}
             {indicatorsError && (
               <p className="paper-trading-warning">
                 Couldn't load indicators: {indicatorsError}

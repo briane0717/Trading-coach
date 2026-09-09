@@ -87,7 +87,10 @@ function makeIndicatorsResponse(indicators: IndicatorResult[]) {
 // active provider depends on VITE_MARKET_DATA_PROVIDER (see the top-of-file comment) and this
 // repo's .env.local pins it to 'alpaca' even for a bare `npm test` run.
 function mockIndicatorsImplementation(
-  impl: (symbol: string, list: { name: string }[]) => Promise<ReturnType<typeof makeIndicatorsResponse>>
+  impl: (
+    symbol: string,
+    list: { name: string; timeframe?: string }[]
+  ) => Promise<ReturnType<typeof makeIndicatorsResponse>>
 ) {
   mockGetIndicators.mockImplementation(impl);
   mockAlpacaGetIndicators.mockImplementation(impl);
@@ -224,6 +227,10 @@ describe('PaperTradingDashboard indicator toggles', () => {
       ]);
     });
 
+    // Defaults to the chart's current timeframe ('1d') on each request.
+    const requestedList = [...mockGetIndicators.mock.calls, ...mockAlpacaGetIndicators.mock.calls].at(-1)![1];
+    expect(requestedList).toEqual([{ name: 'SMA', period: 20, timeframe: '1d' }]);
+
     await user.click(screen.getByLabelText('EMA (20)'));
 
     await waitFor(() => {
@@ -297,47 +304,7 @@ describe('PaperTradingDashboard timeframe selector', () => {
     });
   });
 
-  it('clears an active indicator selection and disables the indicator controls when switching away from 1d', async () => {
-    const user = userEvent.setup();
-    seedAccountWithPosition();
-    mockIndicatorsImplementation(async (_symbol, list) =>
-      makeIndicatorsResponse(
-        list.map((req) =>
-          makeIndicatorResult({
-            name: req.name as IndicatorResult['name'],
-            period: 20,
-            points: [{ timestamp: 1, value: 111 }],
-          })
-        )
-      )
-    );
-    renderDashboard();
-    await screen.findByTestId('candlestick-chart');
-
-    await user.click(screen.getByLabelText('SMA (20)'));
-    await waitFor(() => {
-      expect(lastChartProps().overlayLines).toHaveLength(1);
-    });
-
-    await user.click(screen.getByRole('button', { name: '1h' }));
-
-    await waitFor(() => {
-      expect(lastChartProps().overlayLines).toBeUndefined();
-    });
-    expect(lastChartProps().oscillatorPane).toBeUndefined();
-    expect(lastChartProps().macdPane).toBeUndefined();
-
-    expect(screen.getByLabelText('SMA (20)')).toBeDisabled();
-    expect(screen.getByLabelText('SMA (20)')).not.toBeChecked();
-    expect(screen.getByLabelText('EMA (20)')).toBeDisabled();
-    expect(screen.getByLabelText('VWAP')).toBeDisabled();
-    expect(screen.getByLabelText('Bottom pane')).toBeDisabled();
-    expect(
-      screen.getByText('Indicators available on daily view only for now.')
-    ).toBeInTheDocument();
-  });
-
-  it('re-enables indicator controls when switching back to 1d, without restoring the prior selection', async () => {
+  it('keeps indicator controls enabled and the toggle active at a non-daily timeframe', async () => {
     const user = userEvent.setup();
     seedAccountWithPosition();
     mockIndicatorsImplementation(async (_symbol, list) =>
@@ -357,21 +324,58 @@ describe('PaperTradingDashboard timeframe selector', () => {
     await user.click(screen.getByLabelText('SMA (20)'));
     await waitFor(() => expect(lastChartProps().overlayLines).toHaveLength(1));
 
-    await user.click(screen.getByRole('button', { name: '15m' }));
-    await waitFor(() => expect(screen.getByLabelText('SMA (20)')).toBeDisabled());
-
-    await user.click(screen.getByRole('button', { name: '1d' }));
-
+    await user.click(screen.getByRole('button', { name: '5m' }));
     await waitFor(() => {
-      expect(screen.getByLabelText('SMA (20)')).not.toBeDisabled();
+      expect(screen.getByTestId('candlestick-chart')).toHaveAttribute('data-timeframe', '5m');
     });
-    expect(screen.getByLabelText('SMA (20)')).not.toBeChecked();
+
+    expect(screen.getByLabelText('SMA (20)')).not.toBeDisabled();
+    expect(screen.getByLabelText('SMA (20)')).toBeChecked();
     expect(screen.getByLabelText('EMA (20)')).not.toBeDisabled();
     expect(screen.getByLabelText('VWAP')).not.toBeDisabled();
     expect(screen.getByLabelText('Bottom pane')).not.toBeDisabled();
-    expect(lastChartProps().overlayLines).toBeUndefined();
     expect(
       screen.queryByText('Indicators available on daily view only for now.')
     ).not.toBeInTheDocument();
+
+    // Still showing an overlay — the toggle wasn't cleared by the timeframe switch.
+    expect(lastChartProps().overlayLines).toHaveLength(1);
+  });
+
+  it('passes the new timeframe on each indicator request and updates the indicator data shown, not just the candles', async () => {
+    const user = userEvent.setup();
+    seedAccountWithPosition();
+    mockIndicatorsImplementation(async (_symbol, list) =>
+      makeIndicatorsResponse(
+        list.map((req) =>
+          makeIndicatorResult({
+            name: req.name as IndicatorResult['name'],
+            period: 20,
+            // Distinct value per timeframe so a stale/unchanged overlay is easy to catch.
+            points: [{ timestamp: 1, value: req.timeframe === '5m' ? 555 : 111 }],
+          })
+        )
+      )
+    );
+    renderDashboard();
+    await screen.findByTestId('candlestick-chart');
+
+    await user.click(screen.getByLabelText('SMA (20)'));
+    await waitFor(() => {
+      expect(lastChartProps().overlayLines).toEqual([
+        { label: 'SMA(20)', color: '#2563eb', points: [{ timestamp: 1, value: 111 }] },
+      ]);
+    });
+
+    await user.click(screen.getByRole('button', { name: '5m' }));
+
+    await waitFor(() => {
+      expect(lastChartProps().overlayLines).toEqual([
+        { label: 'SMA(20)', color: '#2563eb', points: [{ timestamp: 1, value: 555 }] },
+      ]);
+    });
+
+    const requestedList = [...mockGetIndicators.mock.calls, ...mockAlpacaGetIndicators.mock.calls].at(-1)![1];
+    expect(requestedList).toEqual([{ name: 'SMA', period: 20, timeframe: '5m' }]);
   });
 });

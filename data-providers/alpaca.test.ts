@@ -3,7 +3,7 @@ import { AlpacaMarketDataProvider } from './alpaca';
 import { macd, rsi, sma } from './internal/indicators';
 import type { Candle } from '../normalized';
 
-const FIXED_NOW = new Date('2024-06-17T20:00:00Z').getTime(); // aligned after-hours, arbitrary
+const FIXED_NOW = new Date('2024-06-17T20:00:00Z').getTime(); // Mon 4:00pm ET — right at/after close
 
 function provider(now: number = FIXED_NOW) {
   return new AlpacaMarketDataProvider({ now: () => now });
@@ -130,8 +130,10 @@ describe('AlpacaMarketDataProvider.getQuote', () => {
     expect(quote.dayLow).toBe(188.75);
     expect(quote.prevClose).toBe(188.0);
     expect(quote.marketCap).toBeNull();
-    expect(quote.sourceType).toBe('real-time');
-    expect(quote.stale).toBe(false);
+    // FIXED_NOW (4:00pm ET) is at/after the close, so even a same-session trade reads as
+    // delayed/stale rather than real-time — see the staleness describe block below.
+    expect(quote.sourceType).toBe('delayed');
+    expect(quote.stale).toBe(true);
     expect(quote.timestamp).toBe(new Date(SNAPSHOT_FIXTURE.latestTrade.t).getTime());
 
     const calledUrl = fetchMock.mock.calls[0][0].toString();
@@ -146,6 +148,58 @@ describe('AlpacaMarketDataProvider.getQuote', () => {
 
     await expect(provider().getQuote('BADSYM')).rejects.toThrow(/404/);
     await expect(provider().getQuote('BADSYM')).rejects.toThrow(/symbol not found/);
+  });
+});
+
+describe('AlpacaMarketDataProvider.getQuote staleness', () => {
+  function snapshotWithTrade(tradeIso: string) {
+    return { ...SNAPSHOT_FIXTURE, latestTrade: { ...SNAPSHOT_FIXTURE.latestTrade, t: tradeIso } };
+  }
+
+  it('is real-time and not stale for a fresh trade during regular market hours', async () => {
+    const now = new Date('2024-06-18T15:00:00Z').getTime(); // Tue 11:00am ET, mid-session
+    const freshTrade = new Date(now - 30_000).toISOString(); // 30s old, same session
+    vi.stubGlobal('fetch', mockFetchRouting({ snapshot: snapshotWithTrade(freshTrade) }));
+
+    const quote = await provider(now).getQuote('AAPL');
+
+    expect(quote.sourceType).toBe('real-time');
+    expect(quote.stale).toBe(false);
+  });
+
+  it('is stale/delayed for a trade older than 15 minutes even during market hours', async () => {
+    const now = new Date('2024-06-18T15:00:00Z').getTime(); // Tue 11:00am ET, mid-session
+    const staleTrade = new Date(now - 16 * 60_000).toISOString(); // 16 min old, same session
+    vi.stubGlobal('fetch', mockFetchRouting({ snapshot: snapshotWithTrade(staleTrade) }));
+
+    const quote = await provider(now).getQuote('AAPL');
+
+    expect(quote.sourceType).toBe('delayed');
+    expect(quote.stale).toBe(true);
+  });
+
+  it('is stale/delayed for a trade from a prior session, even though it is < 15 minutes old by clock time', async () => {
+    // 24h apart, same clock time on consecutive weekdays — recent by a naive age check, but a
+    // different New York trading session.
+    const now = new Date('2024-06-18T15:00:00Z').getTime(); // Tue 11:00am ET
+    const priorSessionTrade = new Date('2024-06-17T15:00:00Z').toISOString(); // Mon 11:00am ET
+    vi.stubGlobal('fetch', mockFetchRouting({ snapshot: snapshotWithTrade(priorSessionTrade) }));
+
+    const quote = await provider(now).getQuote('AAPL');
+
+    expect(quote.sourceType).toBe('delayed');
+    expect(quote.stale).toBe(true);
+  });
+
+  it('is stale/delayed when the market is currently closed, even for a fresh trade', async () => {
+    const now = new Date('2024-06-15T15:00:00Z').getTime(); // Sat 11:00am ET — market closed
+    const freshTrade = new Date(now - 30_000).toISOString();
+    vi.stubGlobal('fetch', mockFetchRouting({ snapshot: snapshotWithTrade(freshTrade) }));
+
+    const quote = await provider(now).getQuote('AAPL');
+
+    expect(quote.sourceType).toBe('delayed');
+    expect(quote.stale).toBe(true);
   });
 });
 

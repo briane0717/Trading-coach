@@ -4,6 +4,7 @@ import type {
   IndicatorRequest,
   IndicatorResult,
   Quote,
+  SourceType,
   Timeframe,
   WithMeta,
 } from '../normalized';
@@ -11,6 +12,66 @@ import type { MarketDataProvider } from './interface';
 import { atr, ema, macd, rsi, sma, vwap } from './internal/indicators';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const REGULAR_MARKET_OPEN_MINUTES = 9 * 60 + 30; // 9:30am ET
+const REGULAR_MARKET_CLOSE_MINUTES = 16 * 60; // 4:00pm ET
+const QUOTE_STALE_THRESHOLD_MS = 15 * 60_000; // >15min old during a live session is stale
+
+const NY_WEEKDAY_INDEX: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+// Wall-clock weekday + minutes-since-midnight in America/New_York for the given instant, via
+// Intl's bundled IANA tz data — this handles EST/EDT transitions correctly without a
+// market-calendar library. US market holidays are NOT accounted for (approximate is fine here);
+// a holiday will be misread as a regular weekday session.
+function newYorkTimeParts(epochMs: number): { weekday: number; minutesSinceMidnight: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short',
+    hour: 'numeric',
+    minute: 'numeric',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(epochMs));
+  const get = (type: string) => parts.find((p) => p.type === type)!.value;
+  return {
+    weekday: NY_WEEKDAY_INDEX[get('weekday')],
+    minutesSinceMidnight: Number(get('hour')) * 60 + Number(get('minute')),
+  };
+}
+
+// en-CA formats as YYYY-MM-DD, a convenient string key for "same New York calendar date".
+function newYorkDateKey(epochMs: number): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(
+    new Date(epochMs)
+  );
+}
+
+function isRegularMarketHours(epochMs: number): boolean {
+  const { weekday, minutesSinceMidnight } = newYorkTimeParts(epochMs);
+  if (weekday === 0 || weekday === 6) return false;
+  return (
+    minutesSinceMidnight >= REGULAR_MARKET_OPEN_MINUTES &&
+    minutesSinceMidnight < REGULAR_MARKET_CLOSE_MINUTES
+  );
+}
+
+// A "real-time" quote is only trustworthy as real-time when: the market is open right now, the
+// trade happened in today's (NY) session rather than a prior one, and it's fresh enough (<=15min)
+// that a live feed should still be showing it.
+function quoteStaleness(tradeTimestampMs: number, nowMs: number): { sourceType: SourceType; stale: boolean } {
+  const stale =
+    !isRegularMarketHours(nowMs) ||
+    newYorkDateKey(tradeTimestampMs) !== newYorkDateKey(nowMs) ||
+    nowMs - tradeTimestampMs > QUOTE_STALE_THRESHOLD_MS;
+  return stale ? { sourceType: 'delayed', stale: true } : { sourceType: 'real-time', stale: false };
+}
 
 const ALPACA_TIMEFRAME: Record<Timeframe, string> = {
   '1m': '1Min',
@@ -166,6 +227,8 @@ export class AlpacaMarketDataProvider implements MarketDataProvider {
     const { latestTrade, latestQuote, dailyBar, prevDailyBar } = snapshot;
     const bid = latestQuote.bp;
     const ask = latestQuote.ap;
+    const tradeTimestamp = new Date(latestTrade.t).getTime();
+    const { sourceType, stale } = quoteStaleness(tradeTimestamp, this.now());
 
     return {
       symbol,
@@ -178,9 +241,9 @@ export class AlpacaMarketDataProvider implements MarketDataProvider {
       dayHigh: dailyBar.h,
       dayLow: dailyBar.l,
       prevClose: prevDailyBar.c,
-      sourceType: 'real-time',
-      timestamp: new Date(latestTrade.t).getTime(),
-      stale: false,
+      sourceType,
+      timestamp: tradeTimestamp,
+      stale,
     };
   }
 

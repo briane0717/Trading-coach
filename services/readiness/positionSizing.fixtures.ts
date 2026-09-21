@@ -1,0 +1,60 @@
+import type { PositionSizingScenario } from './positionSizing';
+
+export const positionSizingFixtures: PositionSizingScenario[] = [
+  {
+    id: 'round-numbers',
+    description: 'Round numbers that divide evenly.',
+    accountEquity: 10_000,
+    entryPrice: 50,
+    stopPrice: 48,
+    riskPercent: 1,
+  },
+  {
+    id: 'requires-rounding-down',
+    description: 'Dollar risk does not divide evenly into whole shares.',
+    accountEquity: 10_000,
+    entryPrice: 52.3,
+    stopPrice: 49.3,
+    riskPercent: 1,
+  },
+  {
+    id: 'tight-stop',
+    description: 'A tight, $0.50 stop distance relative to entry price.',
+    accountEquity: 25_000,
+    entryPrice: 100,
+    stopPrice: 99.5,
+    riskPercent: 0.5,
+  },
+  {
+    id: 'wide-stop',
+    description: 'A wide, $5 stop distance on a lower-priced stock.',
+    accountEquity: 5_000,
+    entryPrice: 20,
+    stopPrice: 15,
+    riskPercent: 2,
+  },
+  {
+    id: 'fractional-risk-percent',
+    description: 'A non-round risk percent combined with a non-round stop distance.',
+    accountEquity: 15_000,
+    entryPrice: 33.1,
+    stopPrice: 31.75,
+    riskPercent: 1.5,
+  },
+  {
+    id: 'large-equity-small-risk-percent',
+    description: 'Large account, small risk percent, wide dollar stop.',
+    accountEquity: 100_000,
+    entryPrice: 250,
+    stopPrice: 245,
+    riskPercent: 0.25,
+  },
+  {
+    id: 'low-priced-tight-stop',
+    description: 'A cheap stock with a very tight stop distance.',
+    accountEquity: 8_000,
+    entryPrice: 12.5,
+    stopPrice: 12.1,
+    riskPercent: 1,
+  },
+];

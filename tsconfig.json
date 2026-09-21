@@ -12,6 +12,6 @@
     "rootDir": ".",
     "outDir": "dist"
   },
-  "include": ["normalized/**/*.ts", "data-providers/**/*.ts", "trading-engine/**/*.ts"],
+  "include": ["normalized/**/*.ts", "data-providers/**/*.ts", "trading-engine/**/*.ts", "services/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }
